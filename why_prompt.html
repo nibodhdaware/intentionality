@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Why are you here?</title>
+        <meta charset="UTF-8" />
+        <style>
+            :root {
+                --calm-blue: #2c3e50;
+                --zen-light: #ecf0f1;
+                --zen-dark: #34495e;
+            }
+            body {
+                font-family: Arial, sans-serif;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                margin: 0;
+                background-color: var(--zen-light);
+                text-align: center;
+                padding: 20px;
+                color: var(--zen-dark);
+            }
+            .container {
+                background-color: white;
+                padding: 40px;
+                border-radius: 10px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                max-width: 500px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            h1 {
+                color: var(--calm-blue);
+                margin-bottom: 20px;
+                font-size: 2.25rem; /* Equivalent to text-4xl */
+                font-weight: bold;
+            }
+            p {
+                color: var(--zen-dark);
+                line-height: 1.6;
+                margin-bottom: 20px;
+                font-size: 1.125rem; /* Equivalent to text-lg */
+            }
+            input[type="text"],
+            select {
+                width: 100%;
+                padding: 12px;
+                margin-bottom: 15px;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                box-sizing: border-box;
+                font-size: 1rem;
+                outline: none;
+                transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            }
+            input[type="text"]:focus,
+            select:focus {
+                border-color: var(--calm-blue);
+                box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.2);
+            }
+            button {
+                background-color: var(--calm-blue);
+                color: white;
+                padding: 12px 24px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                text-decoration: none;
+                display: block;
+                width: 100%;
+                margin-bottom: 10px;
+                font-size: 1.1rem;
+                transition: background-color 0.3s ease;
+            }
+            button:hover {
+                background-color: var(--zen-dark);
+            }
+            #cancelButton {
+                background-color: #6c757d;
+            }
+            #cancelButton:hover {
+                background-color: #5a6268;
+            }
+        </style>
+    </head>
+    <body
+        class="flex flex-col items-center justify-center h-screen m-0 bg-zen-light p-5 text-center"
+    >
+        <div class="container bg-white p-10 rounded-lg shadow-xl max-w-lg">
+            <h1 class="text-4xl text-calm-blue mb-5 font-bold">
+                Why do you want to open this site?
+            </h1>
+            <p class="text-lg text-zen-dark mb-5">
+                Please reflect on your intention before proceeding.
+            </p>
+            <input
+                type="text"
+                id="reasonInput"
+                placeholder="Your reason here..."
+                class="w-full p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-calm-blue"
+            />
+            <select
+                id="dumbReasonDropdown"
+                class="w-full p-3 mb-5 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-calm-blue"
+            >
+                <option value="">How dumb is this reason? 🤔</option>
+                <option value="productive">Actually Productive! 🎯</option>
+                <option value="slightly_distracted">
+                    Slightly Distracted 😅
+                </option>
+                <option value="pretty_distracted">Pretty Distracted 😬</option>
+                <option value="very_distracted">Very Distracted 😫</option>
+                <option value="extremely_distracted">
+                    Extremely Distracted 🤦‍♂️
+                </option>
+            </select>
+            <button
+                id="proceedButton"
+                class="bg-calm-blue text-white py-3 px-6 rounded-md cursor-pointer hover:bg-zen-dark transition duration-300 ease-in-out block w-full mb-3"
+            >
+                Proceed Anyway
+            </button>
+            <button
+                id="cancelButton"
+                class="bg-gray-500 text-white py-3 px-6 rounded-md cursor-pointer hover:bg-gray-600 transition duration-300 ease-in-out block w-full"
+            >
+                Go Back / Stay Focused
+            </button>
+        </div>
+        <script src="why_prompt.js"></script>
+    </body>
+</html>
