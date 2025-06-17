@@ -3,7 +3,7 @@
     "name": "Intentionality",
     "version": "1.0",
     "description": "A Chrome extension that helps you stay focused by blocking distracting websites",
-    "permissions": ["storage", "tabs", "webNavigation"],
+    "permissions": ["storage", "tabs", "webNavigation", "notifications"],
     "action": {
         "default_popup": "popup.html",
         "default_icon": {

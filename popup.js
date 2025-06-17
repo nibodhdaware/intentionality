@@ -172,6 +172,8 @@ function createActivityChart(reasonSummary, urlSummary) {
         // Prepare data for the chart
         const labels = sortedActivities.map((activity) => {
             const date = new Date(activity.timestamp);
+            // Subtract 1 hour from the timestamp for display
+            date.setHours(date.getHours() - 1);
             return date.toLocaleDateString() + " " + date.toLocaleTimeString();
         });
 
@@ -231,9 +233,19 @@ function createActivityChart(reasonSummary, urlSummary) {
                                     .replace(/\b\w/g, (char) =>
                                         char.toUpperCase(),
                                     );
+
+                                // Format the timestamp to show 1 hour before
+                                const date = new Date(activity.timestamp);
+                                date.setHours(date.getHours() - 1);
+                                const timeStr = date.toLocaleTimeString();
+
                                 return [
+                                    `Time: ${timeStr}`,
                                     `Score: ${score}`,
                                     `Reason: ${reason}`,
+                                    `Your Note: "${
+                                        activity.reason || "No note provided"
+                                    }"`,
                                     `URL: ${activity.url}`,
                                 ];
                             },
@@ -255,7 +267,7 @@ function createActivityChart(reasonSummary, urlSummary) {
                     x: {
                         title: {
                             display: true,
-                            text: "Time",
+                            text: "Time (1 hour before activity)",
                             color: "#2c3e50",
                         },
                         grid: {
