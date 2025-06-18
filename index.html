@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Intentionality - Browse with Purpose</title>
+        <link rel="icon" type="image/png" sizes="16x16" href="icons/icon16.png">
+        <link rel="icon" type="image/png" sizes="48x48" href="icons/icon48.png">
+        <link rel="icon" type="image/png" sizes="128x128" href="icons/icon128.png">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            deepblue: '#18344A', // background
+                            medblue: '#295B7A', // eye
+                            lightblue: '#4A90A4', // eye ring
+                        },
+                        gradientColorStops: theme => ({
+                            ...theme('colors'),
+                            'deepblue-start': '#18344A',
+                            'deepblue-end': '#295B7A',
+                        })
+                    }
+                }
+            }
+        </script>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        />
+        <style>
+            /* Animation Classes */
+            .fade-in {
+                opacity: 0;
+                transform: translateY(20px);
+                transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            }
+
+            .fade-in.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .slide-in-left {
+                opacity: 0;
+                transform: translateX(-50px);
+                transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            }
+
+            .slide-in-left.visible {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            .slide-in-right {
+                opacity: 0;
+                transform: translateX(50px);
+                transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            }
+
+            .slide-in-right.visible {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            .scale-in {
+                opacity: 0;
+                transform: scale(0.9);
+                transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            }
+
+            .scale-in.visible {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            /* Stagger children animations */
+            .stagger-children > * {
+                opacity: 0;
+                transform: translateY(20px);
+                transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+            }
+
+            .stagger-children.visible > * {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .stagger-children.visible > *:nth-child(1) {
+                transition-delay: 0.1s;
+            }
+            .stagger-children.visible > *:nth-child(2) {
+                transition-delay: 0.2s;
+            }
+            .stagger-children.visible > *:nth-child(3) {
+                transition-delay: 0.3s;
+            }
+
+            /* Hover animations */
+            .hover-lift {
+                transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+                will-change: transform;
+            }
+
+            .hover-lift:hover {
+                transform: translateY(-5px);
+            }
+
+            /* Footer icon color transition only */
+            .footer-icon-link {
+                transition: color 0.2s cubic-bezier(0.4,0,0.2,1);
+            }
+
+            /* Button pulse animation */
+            @keyframes pulse {
+                0% {
+                    transform: scale(1);
+                }
+                50% {
+                    transform: scale(1.05);
+                }
+                100% {
+                    transform: scale(1);
+                }
+            }
+
+            .pulse-animation {
+                animation: pulse 2s infinite;
+            }
+        </style>
+    </head>
+    <body class="bg-deepblue text-white">
+        <!-- Hero Section -->
+        <header class="bg-gradient-to-b from-deepblue-start to-deepblue-end shadow-sm">
+            <nav class="container mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="text-2xl font-bold text-lightblue fade-in">
+                        Intentionality
+                    </div>
+                    <a
+                        href="https://chrome.google.com/webstore"
+                        class="bg-lightblue text-white px-6 py-2 rounded-lg hover:bg-medblue transition-colors hover-lift"
+                    >
+                        Add to Chrome
+                    </a>
+                </div>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Hero Section -->
+            <section class="py-20 bg-gradient-to-br from-deepblue-start to-deepblue-end">
+                <div class="container mx-auto px-6">
+                    <div class="flex flex-col md:flex-row items-center">
+                        <div class="md:w-1/2 slide-in-left">
+                            <h1
+                                class="text-4xl md:text-5xl font-bold text-white mb-6"
+                            >
+                                Browse with Purpose,<br />
+                                <span class="text-lightblue"
+                                    >Stay Focused</span
+                                >
+                            </h1>
+                            <p class="text-xl text-lightblue mb-8">
+                                Intentionality helps you be more mindful about
+                                your browsing habits</br> by prompting you to reflect
+                                on why you're visiting each website.
+                            </p>
+                            <a
+                                href="https://chrome.google.com/webstore"
+                                class="bg-lightblue text-white px-8 py-3 rounded-lg text-lg hover:bg-medblue transition-colors inline-block hover-lift pulse-animation"
+                            >
+                                Get Started
+                            </a>
+                        </div>
+                        <div class="md:w-1/2 mt-10 md:mt-0 slide-in-right">
+                            <img
+                                src="extension-screenshot.png"
+                                alt="Intentionality Extension Screenshot"
+                                class="rounded-lg shadow-xl hover-lift"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Features Section -->
+            <section class="py-20 bg-white text-deepblue">
+                <div class="container mx-auto px-6">
+                    <h2
+                        class="text-3xl font-bold text-center text-deepblue mb-12 fade-in"
+                    >
+                        Key Features
+                    </h2>
+                    <div class="grid md:grid-cols-3 gap-8 stagger-children">
+                        <div class="p-6 bg-lightblue bg-opacity-10 rounded-lg hover-lift">
+                            <div class="text-lightblue text-2xl mb-4">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-2">
+                                Mindful Browsing
+                            </h3>
+                            <p class="text-medblue">
+                                Take a moment to reflect on why you're visiting
+                                each website, helping you stay focused on your
+                                goals.
+                            </p>
+                        </div>
+                        <div class="p-6 bg-lightblue bg-opacity-10 rounded-lg hover-lift">
+                            <div class="text-lightblue text-2xl mb-4">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-2">
+                                Track Your Habits
+                            </h3>
+                            <p class="text-medblue">
+                                Keep a log of your browsing patterns and reasons
+                                to better understand your online behavior.
+                            </p>
+                        </div>
+                        <div class="p-6 bg-lightblue bg-opacity-10 rounded-lg hover-lift">
+                            <div class="text-lightblue text-2xl mb-4">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-2">
+                                Time Awareness
+                            </h3>
+                            <p class="text-medblue">
+                                Monitor how long you spend on different websites
+                                to better manage your time online.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- How It Works Section -->
+            <section class="py-20 bg-gradient-to-br from-deepblue-start to-deepblue-end text-white">
+                <div class="container mx-auto px-6">
+                    <h2
+                        class="text-3xl font-bold text-center text-white mb-12 fade-in"
+                    >
+                        How It Works
+                    </h2>
+                    <div class="max-w-3xl mx-auto stagger-children">
+                        <div class="flex items-start mb-8 hover-lift">
+                            <div
+                                class="bg-lightblue text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-4"
+                            >
+                                1
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold mb-2">
+                                    Install the Extension
+                                </h3>
+                                <p class="text-lightblue">
+                                    Add Intentionality to your Chrome browser
+                                    with just one click.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-start mb-8 hover-lift">
+                            <div
+                                class="bg-lightblue text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-4"
+                            >
+                                2
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold mb-2">
+                                    Browse Mindfully
+                                </h3>
+                                <p class="text-lightblue">
+                                    When visiting websites, you'll be prompted
+                                    to provide your reason for visiting.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-start hover-lift">
+                            <div
+                                class="bg-lightblue text-white rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 mr-4"
+                            >
+                                3
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-semibold mb-2">
+                                    Track Your Progress
+                                </h3>
+                                <p class="text-lightblue">
+                                    Review your browsing patterns and make more
+                                    intentional decisions about your online
+                                    time.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CTA Section -->
+            <section class="py-20 bg-gradient-to-r from-deepblue-start to-deepblue-end">
+                <div class="container mx-auto px-6 text-center scale-in">
+                    <h2 class="text-3xl font-bold text-white mb-8">
+                        Ready to Browse More Intentionally?
+                    </h2>
+                    <a
+                        href="https://chrome.google.com/webstore"
+                        class="bg-lightblue text-white px-8 py-3 rounded-lg text-lg hover:bg-medblue transition-colors inline-block"
+                    >
+                        Add to Chrome - It's Free
+                    </a>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-deepblue text-white py-12">
+            <div class="container mx-auto px-6">
+                <div
+                    class="flex flex-col md:flex-row justify-between items-center"
+                >
+                    <div class="mb-6 md:mb-0 fade-in">
+                        <div class="text-2xl font-bold text-lightblue">
+                            Intentionality
+                        </div>
+                        <p class="text-lightblue mt-2">
+                            Browse with purpose, stay focused.
+                        </p>
+                    </div>
+                    <div class="flex space-x-6">
+                        <a
+                            href="#"
+                            class="text-lightblue hover:text-white transition-colors hover-lift footer-icon-link"
+                        >
+                            <i class="fab fa-github"></i>
+                        </a>
+                        <a
+                            href="#"
+                            class="text-lightblue hover:text-white transition-colors hover-lift footer-icon-link"
+                        >
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                    </div>
+                </div>
+                <div
+                    class="border-t border-lightblue mt-8 pt-8 text-center text-lightblue fade-in"
+                >
+                    <p>&copy; 2025 Intentionality. All rights reserved.</p>
+                </div>
+            </div>
+        </footer>
+
+        <script>
+            // Intersection Observer for scroll animations
+            const observerOptions = {
+                root: null,
+                rootMargin: "0px",
+                threshold: 0.1,
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add("visible");
+                    }
+                });
+            }, observerOptions);
+
+            // Observe all elements with animation classes
+            document
+                .querySelectorAll(
+                    ".fade-in, .slide-in-left, .slide-in-right, .scale-in, .stagger-children",
+                )
+                .forEach((el) => {
+                    observer.observe(el);
+                });
+        </script>
+    </body>
+</html>
