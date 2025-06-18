@@ -1,4 +1,140 @@
+// ... remove any import statements at the top ...
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCepAVjbZsx0z-M0sTvgp48AAt4bYBSq-U",
+    authDomain: "intentionality-1ce65.firebaseapp.com",
+    projectId: "intentionality-1ce65",
+    storageBucket: "intentionality-1ce65.firebasestorage.app",
+    messagingSenderId: "938266027514",
+    appId: "1:938266027514:web:747ac62f30207ef05d3043",
+    measurementId: "G-1891HVELCR",
+};
+
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
 document.addEventListener("DOMContentLoaded", function () {
+    const loginContainer = document.getElementById("loginContainer");
+    const mainPopupUI = document.getElementById("mainPopupUI");
+    const loginWithGoogleButton = document.getElementById(
+        "loginWithGoogleButton",
+    );
+    const siteInput = document.getElementById("siteInput");
+    const addSiteButton = document.getElementById("addSite");
+    const blockedSitesList = document.getElementById("blockedSitesList");
+
+    // Hide both initially
+    loginContainer.style.display = "none";
+    mainPopupUI.style.display = "none";
+
+    firebase.auth().onAuthStateChanged(function (user) {
+        if (user) {
+            // User is signed in
+            loginContainer.style.display = "none";
+            mainPopupUI.style.display = "flex";
+            runPopupMain();
+        } else {
+            // No user is signed in
+            loginContainer.style.display = "flex";
+            mainPopupUI.style.display = "none";
+        }
+    });
+
+    if (loginWithGoogleButton) {
+        loginWithGoogleButton.addEventListener("click", function () {
+            chrome.tabs.create({
+                url: "https://intentionality.netlify.app/login",
+            });
+        });
+    }
+
+    // After DOMContentLoaded, handle redirect result
+    firebase
+        .auth()
+        .getRedirectResult()
+        .then(function (result) {
+            // User is signed in if result.user exists
+            // (No-op here, as onAuthStateChanged will handle UI)
+        })
+        .catch(function (error) {
+            if (error && error.message) {
+                alert("Google sign-in failed: " + error.message);
+            }
+        });
+
+    // Load and display blocked sites
+    function loadBlockedSites() {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
+            const blockedSites = result.blockedSites || [];
+            blockedSitesList.innerHTML = "";
+
+            blockedSites.forEach((site) => {
+                const siteItem = document.createElement("div");
+                siteItem.className = "site-item";
+
+                const siteText = document.createElement("span");
+                siteText.textContent = site;
+
+                const removeButton = document.createElement("button");
+                removeButton.className = "remove-btn";
+                removeButton.textContent = "Remove";
+                removeButton.onclick = () => removeSite(site);
+
+                siteItem.appendChild(siteText);
+                siteItem.appendChild(removeButton);
+                blockedSitesList.appendChild(siteItem);
+            });
+        });
+    }
+
+    // Add a new site to the block list
+    function addSite() {
+        const site = siteInput.value.trim().toLowerCase();
+        if (!site) return;
+
+        chrome.storage.sync.get(["blockedSites"], function (result) {
+            const blockedSites = result.blockedSites || [];
+            if (!blockedSites.includes(site)) {
+                blockedSites.push(site);
+                chrome.storage.sync.set({ blockedSites }, function () {
+                    siteInput.value = "";
+                    loadBlockedSites();
+                });
+            }
+        });
+    }
+
+    // Remove a site from the block list
+    function removeSite(site) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
+            const blockedSites = result.blockedSites || [];
+            const updatedSites = blockedSites.filter((s) => s !== site);
+            chrome.storage.sync.set(
+                { blockedSites: updatedSites },
+                function () {
+                    loadBlockedSites();
+                },
+            );
+        });
+    }
+
+    // Event listeners
+    addSiteButton.addEventListener("click", addSite);
+    siteInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+            addSite();
+        }
+    });
+
+    // Initial load for blocked sites
+    loadBlockedSites();
+
+    // Load and display activity stats
+    loadActivityStats();
+});
+
+function runPopupMain() {
     const siteInput = document.getElementById("siteInput");
     const addSiteButton = document.getElementById("addSite");
     const blockedSitesList = document.getElementById("blockedSitesList");
@@ -72,7 +208,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Load and display activity stats
     loadActivityStats();
-});
+}
 
 // Function to load and render activity stats
 function loadActivityStats() {

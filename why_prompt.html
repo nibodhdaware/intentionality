@@ -88,7 +88,28 @@
     <body
         class="flex flex-col items-center justify-center h-screen m-0 bg-zen-light p-5 text-center"
     >
-        <div class="container bg-white p-10 rounded-lg shadow-xl max-w-lg">
+        <div
+            id="loginContainer"
+            class="container bg-white p-10 rounded-lg shadow-xl max-w-lg"
+            style="display: none"
+        >
+            <h1 class="text-4xl text-calm-blue mb-5 font-bold">
+                Sign in Required
+            </h1>
+            <p class="text-lg text-zen-dark mb-5">
+                Please sign in with Google to continue.
+            </p>
+            <button
+                id="loginWithGoogleButton"
+                class="bg-calm-blue text-white py-3 px-6 rounded-md cursor-pointer hover:bg-zen-dark transition duration-300 ease-in-out block w-full mb-3"
+            >
+                Login with Google
+            </button>
+        </div>
+        <div
+            id="mainUI"
+            class="container bg-white p-10 rounded-lg shadow-xl max-w-lg"
+        >
             <h1 class="text-4xl text-calm-blue mb-5 font-bold">
                 Why do you want to open this site?
             </h1>

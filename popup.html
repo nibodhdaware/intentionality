@@ -4,6 +4,9 @@
         <title>Intentionality</title>
         <meta charset="UTF-8" />
         <script src="lib/chart.js"></script>
+        <script src="lib/firebase.js"></script>
+        <script src="lib/firebase-auth.js"></script>
+        <script src="lib/firebase-firestore.js"></script>
         <style>
             :root {
                 --calm-blue: #2c3e50;
@@ -168,7 +171,12 @@
         </style>
     </head>
     <body>
-        <div class="container">
+        <div id="loginContainer" class="container" style="display: none">
+            <h2>Sign in Required</h2>
+            <p>Please sign in with Google to continue.</p>
+            <button id="loginWithGoogleButton">Login with Google</button>
+        </div>
+        <div id="mainPopupUI" class="container" style="display: none">
             <h2>Intentionality</h2>
             <div class="input-group">
                 <input
@@ -182,7 +190,6 @@
                 <h3>Blocked Websites</h3>
                 <div id="blockedSitesList"></div>
             </div>
-
             <div class="stats-section">
                 <h3>Your Activity Insights</h3>
                 <div id="activityStats"></div>
