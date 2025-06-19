@@ -4,9 +4,6 @@
         <title>Intentionality</title>
         <meta charset="UTF-8" />
         <script src="lib/chart.js"></script>
-        <script src="lib/firebase.js"></script>
-        <script src="lib/firebase-auth.js"></script>
-        <script src="lib/firebase-firestore.js"></script>
         <style>
             :root {
                 --calm-blue: #2c3e50;
@@ -159,24 +156,29 @@
             /* Add styles for the chart container */
             .chart-container {
                 margin-top: 20px;
-                padding: 15px;
+                padding: 15px 0 15px 0;
                 background-color: white;
                 border-radius: 8px;
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                display: flex;
+                justify-content: flex-start;
+                align-items: center;
+                width: 350px;
+                height: 270px;
+                margin-left: 5px;
+                margin-right: 0;
+                overflow-x: auto;
             }
             canvas {
-                width: 100% !important;
-                height: 200px !important;
+                width: 350px !important;
+                height: 250px !important;
+                aspect-ratio: 1.2;
+                display: block;
             }
         </style>
     </head>
     <body>
-        <div id="loginContainer" class="container" style="display: none">
-            <h2>Sign in Required</h2>
-            <p>Please sign in with Google to continue.</p>
-            <button id="loginWithGoogleButton">Login with Google</button>
-        </div>
-        <div id="mainPopupUI" class="container" style="display: none">
+        <div id="mainPopupUI" class="container">
             <h2>Intentionality</h2>
             <div class="input-group">
                 <input
