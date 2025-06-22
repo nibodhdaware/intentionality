@@ -143,8 +143,68 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         } else {
             sendResponse({ status: "error", message: "Missing tabId or URL" });
         }
+    } else if (request.type === "LOGIN_SUCCESS") {
+        // Handle login success from the login page
+        console.log("Login success received in background script");
+
+        // Store the authentication data
+        chrome.storage.sync.set(
+            {
+                authToken: request.token,
+                userInfo: request.userInfo,
+            },
+            function () {
+                console.log("Authentication data stored");
+
+                // Forward the message to any open popup
+                chrome.runtime.sendMessage(request);
+
+                sendResponse({ status: "success" });
+            },
+        );
+
+        return true; // Keep the message channel open for the async response
     }
 });
+
+// Listen for messages from external websites (like the login page)
+chrome.runtime.onMessageExternal.addListener(
+    (message, sender, sendResponse) => {
+        console.log("External message received:", message, "from:", sender);
+
+        if (message.type === "LOGIN_SUCCESS") {
+            const token = message.token;
+            const userInfo = message.userInfo;
+
+            console.log(
+                "External login success received with token:",
+                token ? "present" : "missing",
+            );
+
+            // Store token and user info using chrome.storage
+            chrome.storage.sync.set(
+                {
+                    authToken: token,
+                    userInfo: userInfo,
+                },
+                () => {
+                    console.log(
+                        "User is logged in! Token and user info stored.",
+                    );
+
+                    // Forward the message to any open popup
+                    chrome.runtime.sendMessage({
+                        type: "LOGIN_SUCCESS",
+                        token: token,
+                        userInfo: userInfo,
+                    });
+                },
+            );
+
+            sendResponse({ status: "received" });
+        }
+    },
+);
 
 // Listen for navigation events
 chrome.webNavigation.onBeforeNavigate.addListener(
@@ -189,3 +249,49 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     },
     { url: [{ schemes: ["http", "https"] }] },
 );
+
+// Inject content script for login page communication
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+    if (
+        changeInfo.status === "complete" &&
+        tab.url &&
+        (tab.url.includes("intentionality.app/login") ||
+            tab.url.includes("127.0.0.1:5500/intentionality-lander/login.html"))
+    ) {
+        chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            function: injectLoginCommunication,
+        });
+    }
+});
+
+// Content script function to inject into login page
+function injectLoginCommunication() {
+    // Listen for custom events from the login page
+    window.addEventListener("intentionalityUserLoggedIn", function (event) {
+        // Forward the login event to the extension
+        chrome.runtime.sendMessage({
+            type: "LOGIN_SUCCESS",
+            userInfo: event.detail,
+            timestamp: Date.now(),
+        });
+    });
+
+    // Listen for localStorage changes
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function (key, value) {
+        originalSetItem.apply(this, arguments);
+        if (key === "intentionality_user_login") {
+            try {
+                const loginData = JSON.parse(value);
+                chrome.runtime.sendMessage({
+                    type: "LOGIN_SUCCESS",
+                    userInfo: loginData.userInfo,
+                    timestamp: loginData.timestamp,
+                });
+            } catch (e) {
+                console.error("Error parsing login data:", e);
+            }
+        }
+    };
+}

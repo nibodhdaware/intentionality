@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const addSiteButton = document.getElementById("addSite");
     const blockedSitesList = document.getElementById("blockedSitesList");
     const datePicker = document.getElementById("datePicker");
+    const chartOverlay = document.getElementById("chartOverlay");
 
     // Show main UI
     mainPopupUI.style.display = "flex";
@@ -14,8 +15,49 @@ document.addEventListener("DOMContentLoaded", function () {
     const today = new Date().toISOString().split("T")[0];
     datePicker.value = today;
 
+    // Check authentication state
+    checkAuthState();
+
     // Check and reset state if it's a new day
     checkAndResetDailyState();
+
+    // Function to check authentication state
+    function checkAuthState() {
+        chrome.storage.sync.get(["authToken", "userInfo"], function (result) {
+            const authToken = result.authToken;
+            const userInfo = result.userInfo;
+
+            if (authToken && userInfo) {
+                // User is logged in, hide overlay
+                chartOverlay.classList.add("hidden");
+            } else {
+                // User is not logged in, show overlay
+                chartOverlay.classList.remove("hidden");
+            }
+        });
+    }
+
+    // Listen for messages from the login page
+    chrome.runtime.onMessage.addListener(function (
+        request,
+        sender,
+        sendResponse,
+    ) {
+        if (request.type === "LOGIN_SUCCESS") {
+            // Store the auth token and user info
+            chrome.storage.sync.set(
+                {
+                    authToken: request.token,
+                    userInfo: request.userInfo,
+                },
+                function () {
+                    // Hide the overlay after successful login
+                    chartOverlay.classList.add("hidden");
+                    console.log("User logged in successfully");
+                },
+            );
+        }
+    });
 
     // Load and display blocked sites
     function loadBlockedSites() {

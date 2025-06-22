@@ -168,12 +168,55 @@
                 margin-left: 5px;
                 margin-right: 0;
                 overflow-x: auto;
+                position: relative;
             }
             canvas {
                 width: 280px !important;
                 height: 180px !important;
                 aspect-ratio: 1.2;
                 display: block;
+            }
+            .chart-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.9);
+                backdrop-filter: blur(4px);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                border-radius: 8px;
+                z-index: 10;
+            }
+            .chart-overlay.hidden {
+                display: none;
+            }
+            .signin-message {
+                text-align: center;
+                margin-bottom: 15px;
+                color: var(--zen-dark);
+                font-size: 0.9rem;
+                line-height: 1.4;
+                padding: 0 20px;
+            }
+            .signin-button {
+                background-color: var(--calm-blue);
+                color: white;
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                font-weight: 600;
+                transition: background-color 0.3s ease;
+                text-decoration: none;
+                display: inline-block;
+            }
+            .signin-button:hover {
+                background-color: var(--zen-dark);
             }
             .date-selector {
                 margin-top: 15px;
@@ -220,6 +263,18 @@
                 <div id="activityStats"></div>
                 <div class="chart-container">
                     <canvas id="activityChart"></canvas>
+                    <div id="chartOverlay" class="chart-overlay">
+                        <div class="signin-message">
+                            Sign in for analytics and sync purposes
+                        </div>
+                        <a
+                            href="http://127.0.0.1:5500/intentionality-lander/login.html"
+                            target="_blank"
+                            class="signin-button"
+                        >
+                            Sign in with Google
+                        </a>
+                    </div>
                 </div>
                 <div class="date-selector">
                     <label for="datePicker">Select Date:</label>
