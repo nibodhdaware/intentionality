@@ -3,7 +3,6 @@
     <head>
         <title>Intentionality</title>
         <meta charset="UTF-8" />
-        <script src="lib/chart.js"></script>
         <style>
             :root {
                 --calm-blue: #2c3e50;
@@ -241,6 +240,36 @@
                 border-color: var(--calm-blue);
                 box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.15);
             }
+            .migration-section {
+                margin-top: 15px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .migrate-btn {
+                padding: 12px 18px;
+                background-color: var(--calm-blue);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 1rem;
+                transition: background-color 0.3s ease, transform 0.2s ease;
+                white-space: nowrap;
+                flex-shrink: 0;
+                box-sizing: border-box;
+            }
+            .migrate-btn:hover {
+                background-color: var(--zen-dark);
+            }
+            .migrate-btn:active {
+                transform: translateY(1px);
+            }
+            .migration-status {
+                text-align: center;
+                color: var(--zen-dark);
+                font-size: 0.9rem;
+            }
         </style>
     </head>
     <body>
@@ -280,8 +309,27 @@
                     <label for="datePicker">Select Date:</label>
                     <input type="date" id="datePicker" />
                 </div>
+                <div class="migration-section">
+                    <button
+                        id="migrateButton"
+                        class="migrate-btn"
+                        style="display: none"
+                    >
+                        Migrate Data to Cloud
+                    </button>
+                    <div id="migrationStatus" class="migration-status"></div>
+                </div>
             </div>
         </div>
+        <script src="lib/chart.js"></script>
+        <!-- Firebase App (the core Firebase SDK) -->
+        <script src="lib/firebase-app-compat.js"></script>
+        <!-- Firebase Firestore -->
+        <script src="lib/firebase-firestore-compat.js"></script>
+        <!-- Firebase configuration -->
+        <script src="lib/firebase-config.js"></script>
+        <!-- Migration utility -->
+        <script src="lib/migration-utility.js"></script>
         <script src="popup.js"></script>
     </body>
 </html>

@@ -104,6 +104,63 @@ function checkDailySummary() {
 // Set up periodic check for daily summary
 setInterval(checkDailySummary, 60000); // Check every minute
 
+// Function to get blocked sites from Firestore (via message to popup)
+async function getBlockedSitesFromFirestore() {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+            { action: "getBlockedSitesFromFirestore" },
+            (response) => {
+                if (response && response.success) {
+                    resolve(response.blockedSites);
+                } else {
+                    resolve(null);
+                }
+            },
+        );
+    });
+}
+
+// Function to check if a site is blocked (hybrid approach)
+async function checkIfSiteBlocked(hostname) {
+    try {
+        // First try to get blocked sites from Firestore
+        const firestoreBlockedSites = await getBlockedSitesFromFirestore();
+
+        if (firestoreBlockedSites && firestoreBlockedSites.length > 0) {
+            return firestoreBlockedSites.some(
+                (site) => hostname === site || hostname === `www.${site}`,
+            );
+        }
+
+        // Fallback to Chrome storage
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(["blockedSites"], function (result) {
+                const blockedSites = result.blockedSites || [];
+                resolve(
+                    blockedSites.some(
+                        (site) =>
+                            hostname === site || hostname === `www.${site}`,
+                    ),
+                );
+            });
+        });
+    } catch (error) {
+        console.error("Error checking blocked sites:", error);
+        // Fallback to Chrome storage
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(["blockedSites"], function (result) {
+                const blockedSites = result.blockedSites || [];
+                resolve(
+                    blockedSites.some(
+                        (site) =>
+                            hostname === site || hostname === `www.${site}`,
+                    ),
+                );
+            });
+        });
+    }
+}
+
 // Listen for messages from other parts of the extension (e.g., popup.js, why_prompt.js)
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === "allowUrl") {
@@ -143,6 +200,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         } else {
             sendResponse({ status: "error", message: "Missing tabId or URL" });
         }
+    } else if (request.action === "getBlockedSitesFromFirestore") {
+        // This will be handled by the popup if it's open
+        // For now, return null to indicate fallback to Chrome storage
+        sendResponse({ success: false, blockedSites: null });
     } else if (request.type === "LOGIN_SUCCESS") {
         // Handle login success from the login page
         console.log("Login success received in background script");
@@ -208,7 +269,7 @@ chrome.runtime.onMessageExternal.addListener(
 
 // Listen for navigation events
 chrome.webNavigation.onBeforeNavigate.addListener(
-    function (details) {
+    async function (details) {
         // If the navigation is to our why_prompt.html, we don't want to re-block it.
         if (details.url.startsWith(chrome.runtime.getURL("why_prompt.html"))) {
             return;
@@ -227,25 +288,19 @@ chrome.webNavigation.onBeforeNavigate.addListener(
         const url = new URL(details.url);
         const hostname = url.hostname;
 
-        // Check if the current site is in the block list (exact match for hostname)
-        chrome.storage.sync.get(["blockedSites"], function (result) {
-            const blockedSites = result.blockedSites || [];
+        // Check if the current site is blocked using hybrid approach
+        const isBlocked = await checkIfSiteBlocked(hostname);
 
-            if (
-                blockedSites.some(
-                    (site) => hostname === site || hostname === `www.${site}`,
-                )
-            ) {
-                // Create a blocking page
-                chrome.tabs.update(details.tabId, {
-                    url: chrome.runtime.getURL(
-                        `why_prompt.html?url=${encodeURIComponent(
-                            details.url,
-                        )}&tabId=${details.tabId}`,
-                    ),
-                });
-            }
-        });
+        if (isBlocked) {
+            // Create a blocking page
+            chrome.tabs.update(details.tabId, {
+                url: chrome.runtime.getURL(
+                    `why_prompt.html?url=${encodeURIComponent(
+                        details.url,
+                    )}&tabId=${details.tabId}`,
+                ),
+            });
+        }
     },
     { url: [{ schemes: ["http", "https"] }] },
 );
