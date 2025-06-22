@@ -5,9 +5,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const siteInput = document.getElementById("siteInput");
     const addSiteButton = document.getElementById("addSite");
     const blockedSitesList = document.getElementById("blockedSitesList");
+    const datePicker = document.getElementById("datePicker");
 
     // Show main UI
     mainPopupUI.style.display = "flex";
+
+    // Set default date to today
+    const today = new Date().toISOString().split("T")[0];
+    datePicker.value = today;
+
+    // Check and reset state if it's a new day
+    checkAndResetDailyState();
 
     // Load and display blocked sites
     function loadBlockedSites() {
@@ -65,12 +73,38 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Check if it's a new day and reset state if needed
+    function checkAndResetDailyState() {
+        chrome.storage.sync.get(["lastResetDate"], function (result) {
+            const lastResetDate = result.lastResetDate;
+            const today = new Date().toDateString();
+
+            if (lastResetDate !== today) {
+                // Just update the last reset date, don't clear activity log
+                // This preserves historical data for date selection
+                chrome.storage.sync.set(
+                    {
+                        lastResetDate: today,
+                    },
+                    function () {
+                        console.log("Daily reset date updated");
+                    },
+                );
+            }
+        });
+    }
+
     // Event listeners
     addSiteButton.addEventListener("click", addSite);
     siteInput.addEventListener("keypress", function (e) {
         if (e.key === "Enter") {
             addSite();
         }
+    });
+
+    // Date picker event listener
+    datePicker.addEventListener("change", function () {
+        loadActivityStats();
     });
 
     // Initial load for blocked sites
@@ -82,13 +116,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Function to load and render activity stats
 function loadActivityStats() {
+    const selectedDate = document.getElementById("datePicker").value;
+
     chrome.storage.sync.get(["activityLog"], function (result) {
         const activityLog = result.activityLog || [];
+
         const activityStatsDiv = document.getElementById("activityStats");
         activityStatsDiv.innerHTML = ""; // Clear previous content
 
-        if (activityLog.length === 0) {
-            activityStatsDiv.innerHTML = "<p>No activity recorded yet.</p>";
+        // Filter activities by selected date
+        const filteredActivities = activityLog.filter((log) => {
+            const logDate = new Date(log.timestamp).toISOString().split("T")[0];
+            return logDate === selectedDate;
+        });
+
+        if (filteredActivities.length === 0) {
+            activityStatsDiv.innerHTML = `<p>No activity recorded for ${selectedDate}.</p>`;
+            // Clear the chart
+            if (window.activityChartInstance) {
+                window.activityChartInstance.destroy();
+                window.activityChartInstance = null;
+            }
             return;
         }
 
@@ -104,7 +152,7 @@ function loadActivityStats() {
             extremely_distracted: "🤦‍♂️",
         };
 
-        activityLog.forEach((log) => {
+        filteredActivities.forEach((log) => {
             // Summarize reasons
             if (log.dumbReason && log.dumbReason !== "") {
                 reasonSummary[log.dumbReason] =
@@ -147,145 +195,135 @@ function loadActivityStats() {
 
         activityStatsDiv.innerHTML = reasonHtml + urlHtml;
 
-        // Create the activity chart
-        createActivityChart(reasonSummary, urlSummary);
+        // Create the activity chart with filtered data
+        createActivityChart(filteredActivities);
     });
 }
 
 // Function to create and update the activity chart
-function createActivityChart(reasonSummary, urlSummary) {
+function createActivityChart(activityLog) {
     const ctx = document.getElementById("activityChart").getContext("2d");
 
-    // Get activity log and sort by timestamp
-    chrome.storage.sync.get(["activityLog"], function (result) {
-        const activityLog = result.activityLog || [];
+    // Sort activities by timestamp
+    const sortedActivities = activityLog.sort(
+        (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
+    );
 
-        // Sort activities by timestamp
-        const sortedActivities = activityLog.sort(
-            (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
-        );
+    // Create a productivity score for each activity
+    const productivityScores = {
+        productive: 1,
+        slightly_distracted: 0.5,
+        pretty_distracted: 0,
+        very_distracted: -0.5,
+        extremely_distracted: -1,
+    };
 
-        // Create a productivity score for each activity
-        const productivityScores = {
-            productive: 1,
-            slightly_distracted: 0.5,
-            pretty_distracted: 0,
-            very_distracted: -0.5,
-            extremely_distracted: -1,
-        };
+    // Prepare data for the chart
+    const labels = sortedActivities.map((activity) => {
+        const date = new Date(activity.timestamp);
+        // Subtract 1 hour from the timestamp for display
+        date.setHours(date.getHours() - 1);
+        return date.toLocaleTimeString();
+    });
 
-        // Prepare data for the chart
-        const labels = sortedActivities.map((activity) => {
-            const date = new Date(activity.timestamp);
-            // Subtract 1 hour from the timestamp for display
-            date.setHours(date.getHours() - 1);
-            return date.toLocaleDateString() + " " + date.toLocaleTimeString();
-        });
+    const scores = sortedActivities.map(
+        (activity) => productivityScores[activity.dumbReason] || 0,
+    );
 
-        const scores = sortedActivities.map(
-            (activity) => productivityScores[activity.dumbReason] || 0,
-        );
+    // Calculate cumulative score
+    let cumulativeScore = 0;
+    const cumulativeScores = scores.map((score) => {
+        cumulativeScore += score;
+        return cumulativeScore;
+    });
 
-        // Calculate cumulative score
-        let cumulativeScore = 0;
-        const cumulativeScores = scores.map((score) => {
-            cumulativeScore += score;
-            return cumulativeScore;
-        });
+    // Destroy previous chart instance if exists
+    if (window.activityChartInstance) {
+        window.activityChartInstance.destroy();
+    }
 
-        // Destroy previous chart instance if exists
-        if (window.activityChartInstance) {
-            window.activityChartInstance.destroy();
-        }
-
-        window.activityChartInstance = new Chart(ctx, {
-            type: "line",
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: "Cumulative Productivity Score",
-                        data: cumulativeScores,
-                        borderColor: "#2c3e50",
-                        backgroundColor: "rgba(44, 62, 80, 0.1)",
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 6,
-                        pointHoverRadius: 10,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                aspectRatio: 1.2,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        display: false,
-                    },
-                    tooltip: {
-                        enabled: true,
-                        mode: "nearest",
-                        intersect: true,
-                        callbacks: {
-                            label: function (context) {
-                                const activity =
-                                    sortedActivities[context.dataIndex];
-                                const score =
-                                    productivityScores[activity.dumbReason];
-                                const reason = activity.dumbReason
-                                    .replace(/_/g, " ")
-                                    .replace(/\b\w/g, (char) =>
-                                        char.toUpperCase(),
-                                    );
-
-                                // Format the timestamp to show 1 hour before
-                                const date = new Date(activity.timestamp);
-                                date.setHours(date.getHours() - 1);
-                                const timeStr = date.toLocaleTimeString();
-
-                                return [
-                                    `Time: ${timeStr}`,
-                                    `Score: ${score}`,
-                                    `Reason: ${reason}`,
-                                    `Your Note: "${
-                                        activity.reason || "No note provided"
-                                    }"`,
-                                    `URL: ${activity.url}`,
-                                ];
-                            },
-                        },
-                    },
+    window.activityChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: "Cumulative Productivity Score",
+                    data: cumulativeScores,
+                    borderColor: "#2c3e50",
+                    backgroundColor: "transparent",
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 6,
+                    pointHoverRadius: 10,
                 },
-                interaction: {
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                },
+                tooltip: {
+                    enabled: true,
                     mode: "nearest",
                     intersect: true,
-                },
-                scales: {
-                    x: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: "Time",
+                    callbacks: {
+                        label: function (context) {
+                            const activity =
+                                sortedActivities[context.dataIndex];
+                            const score =
+                                productivityScores[activity.dumbReason];
+                            const reason = activity.dumbReason
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, (char) => char.toUpperCase());
+
+                            // Format the timestamp to show 1 hour before
+                            const date = new Date(activity.timestamp);
+                            date.setHours(date.getHours() - 1);
+                            const timeStr = date.toLocaleTimeString();
+
+                            return [
+                                `Time: ${timeStr}`,
+                                `Score: ${score}`,
+                                `Reason: ${reason}`,
+                                `Your Note: "${
+                                    activity.reason || "No note provided"
+                                }"`,
+                                `URL: ${activity.url}`,
+                            ];
                         },
-                        ticks: {
-                            autoSkip: true,
-                            maxTicksLimit: 5,
-                            maxRotation: 45,
-                            minRotation: 0,
-                        },
-                    },
-                    y: {
-                        display: true,
-                        title: {
-                            display: true,
-                            text: "Cumulative Score",
-                        },
-                        beginAtZero: true,
-                        suggestedMin: 0,
                     },
                 },
             },
-        });
+            interaction: {
+                mode: "nearest",
+                intersect: true,
+            },
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: "Time",
+                    },
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: 10,
+                    },
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: "Cumulative Score",
+                    },
+                    beginAtZero: true,
+                    suggestedMin: 0,
+                },
+            },
+        },
     });
 }

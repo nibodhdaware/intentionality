@@ -163,17 +163,40 @@
                 display: flex;
                 justify-content: flex-start;
                 align-items: center;
-                width: 350px;
-                height: 270px;
+                width: 280px;
+                height: 200px;
                 margin-left: 5px;
                 margin-right: 0;
                 overflow-x: auto;
             }
             canvas {
-                width: 350px !important;
-                height: 250px !important;
+                width: 280px !important;
+                height: 180px !important;
                 aspect-ratio: 1.2;
                 display: block;
+            }
+            .date-selector {
+                margin-top: 15px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .date-selector label {
+                font-size: 0.95rem;
+                color: var(--zen-dark);
+                font-weight: 600;
+            }
+            .date-selector input[type="date"] {
+                padding: 8px 12px;
+                border: 1px solid #dcdcdc;
+                border-radius: 6px;
+                font-size: 0.9rem;
+                outline: none;
+                transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            }
+            .date-selector input[type="date"]:focus {
+                border-color: var(--calm-blue);
+                box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.15);
             }
         </style>
     </head>
@@ -197,6 +220,10 @@
                 <div id="activityStats"></div>
                 <div class="chart-container">
                     <canvas id="activityChart"></canvas>
+                </div>
+                <div class="date-selector">
+                    <label for="datePicker">Select Date:</label>
+                    <input type="date" id="datePicker" />
                 </div>
             </div>
         </div>
