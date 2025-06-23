@@ -30,9 +30,20 @@ document.addEventListener("DOMContentLoaded", function () {
     // Show main UI
     mainPopupUI.style.display = "flex";
 
-    // Set default date to today
-    const today = new Date().toISOString().split("T")[0];
-    datePicker.value = today;
+    // Set default date to today - ensure this happens after DOM is ready
+    function setDefaultDate() {
+        const today = new Date().toISOString().split("T")[0];
+        datePicker.value = today;
+        console.log("Date picker set to:", today);
+    }
+
+    // Set the date immediately and also after a short delay to ensure it takes effect
+    setDefaultDate();
+    setTimeout(() => {
+        setDefaultDate();
+        // Trigger initial load after setting the date
+        loadActivityStats();
+    }, 100);
 
     // Check authentication state
     checkAuthState();
@@ -190,6 +201,38 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Sync blocked sites from Firestore to Chrome storage on popup load
+    async function syncBlockedSitesFromFirestore() {
+        try {
+            // Check if Firebase is available
+            if (typeof firebase === "undefined" || !firebase.firestore) {
+                return; // No Firebase, skip sync
+            }
+
+            const userId = await getCurrentUserId();
+            if (!userId) {
+                return; // No user ID, skip sync
+            }
+
+            const docRef = firebase
+                .firestore()
+                .collection("users")
+                .doc(userId)
+                .collection("settings")
+                .doc("blockedSites");
+            const doc = await docRef.get();
+
+            if (doc.exists) {
+                const data = doc.data();
+                const blockedSites = data.sites || [];
+                // Sync to Chrome storage for background script
+                syncBlockedSitesToChrome(blockedSites);
+            }
+        } catch (error) {
+            console.error("Error syncing blocked sites from Firestore:", error);
+        }
+    }
+
     // Display blocked sites in the UI
     function displayBlockedSites(blockedSites) {
         blockedSitesList.innerHTML = "";
@@ -209,6 +252,25 @@ document.addEventListener("DOMContentLoaded", function () {
             siteItem.appendChild(siteText);
             siteItem.appendChild(removeButton);
             blockedSitesList.appendChild(siteItem);
+        });
+
+        // Sync to Chrome storage for background script access
+        syncBlockedSitesToChrome(blockedSites);
+    }
+
+    // Sync blocked sites to Chrome storage for background script access
+    function syncBlockedSitesToChrome(blockedSites) {
+        chrome.storage.sync.set({ blockedSites: blockedSites }, function () {
+            if (chrome.runtime.lastError) {
+                console.error(
+                    "Error syncing blocked sites to Chrome storage:",
+                    chrome.runtime.lastError,
+                );
+            } else {
+                console.log(
+                    `Synced ${blockedSites.length} blocked sites to Chrome storage`,
+                );
+            }
         });
     }
 
@@ -251,6 +313,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 await docRef.set({ sites: blockedSites });
                 siteInput.value = "";
                 loadBlockedSites();
+                // Sync to Chrome storage for background script
+                syncBlockedSitesToChrome(blockedSites);
             }
         } catch (error) {
             console.error("Error adding site to Firestore:", error);
@@ -304,6 +368,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 blockedSites = blockedSites.filter((s) => s !== site);
                 await docRef.set({ sites: blockedSites });
                 loadBlockedSites();
+                // Sync to Chrome storage for background script
+                syncBlockedSitesToChrome(blockedSites);
             }
         } catch (error) {
             console.error("Error removing site from Firestore:", error);
@@ -388,14 +454,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Date picker event listener
     datePicker.addEventListener("change", function () {
+        console.log("Date picker changed to:", datePicker.value);
         loadActivityStats();
     });
 
     // Initial load for blocked sites
     loadBlockedSites();
 
-    // Load and display activity stats
-    loadActivityStats();
+    // Sync blocked sites from Firestore to Chrome storage for background script
+    syncBlockedSitesFromFirestore();
 
     // Check migration status and show migration button if needed
     checkMigrationStatus();
@@ -714,17 +781,33 @@ document.addEventListener("DOMContentLoaded", function () {
                         borderWidth: 2,
                         fill: true,
                         tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
                     },
                 ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: "index",
+                },
                 plugins: {
                     legend: {
                         display: false,
                     },
                     tooltip: {
+                        enabled: true,
+                        mode: "index",
+                        intersect: false,
+                        backgroundColor: "rgba(44, 62, 80, 0.9)",
+                        titleColor: "white",
+                        bodyColor: "white",
+                        borderColor: "#2c3e50",
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        displayColors: false,
                         callbacks: {
                             title: (context) => {
                                 const activity =

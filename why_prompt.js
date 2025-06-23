@@ -79,7 +79,8 @@ async function saveActivityToFirestore(url, reason, dumbReason) {
     }
 
     let sessionDuration = null;
-    if (dumbReason === "procrastination" && startTime) {
+    // Calculate session duration for all distracted activities (not just productive ones)
+    if (dumbReason && dumbReason !== "productive" && startTime) {
         const endTime = new Date();
         sessionDuration = (endTime.getTime() - startTime.getTime()) / 1000; // Duration in seconds
     }
@@ -111,7 +112,8 @@ async function saveActivityToChrome(url, reason, dumbReason) {
             const timestamp = new Date().toISOString();
 
             let sessionDuration = null;
-            if (dumbReason === "procrastination" && startTime) {
+            // Calculate session duration for all distracted activities (not just productive ones)
+            if (dumbReason && dumbReason !== "productive" && startTime) {
                 const endTime = new Date();
                 sessionDuration =
                     (endTime.getTime() - startTime.getTime()) / 1000; // Duration in seconds
