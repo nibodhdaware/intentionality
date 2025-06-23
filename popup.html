@@ -270,6 +270,20 @@
                 color: var(--zen-dark);
                 font-size: 0.9rem;
             }
+            .report-issue-link {
+                margin-top: 15px;
+                text-align: center;
+                font-size: 0.9rem;
+            }
+            .report-issue-link a {
+                color: var(--calm-blue);
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+            .report-issue-link a:hover {
+                color: var(--zen-dark);
+                text-decoration: underline;
+            }
         </style>
     </head>
     <body>
@@ -318,6 +332,11 @@
                         Migrate Data to Cloud
                     </button>
                     <div id="migrationStatus" class="migration-status"></div>
+                </div>
+                <div class="report-issue-link">
+                    <a href="intentionality.app/add-issue.html" target="_blank">
+                        Report an Issue
+                    </a>
                 </div>
             </div>
         </div>
