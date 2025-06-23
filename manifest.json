@@ -41,6 +41,6 @@
         "extension_pages": "script-src 'self'; object-src 'self'"
     },
     "externally_connectable": {
-        "matches": ["https://intentionality.app/*", "http://127.0.0.1:5500/*"]
+        "matches": ["https://intentionality.app/*"]
     }
 }

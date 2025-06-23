@@ -443,7 +443,6 @@ chrome.webNavigation.onBeforeNavigate.addListener(
             "webex.com",
             "gotomeeting.com",
             "intentionality.app",
-            "127.0.0.1",
         ];
 
         if (
@@ -481,7 +480,7 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         changeInfo.status === "complete" &&
         tab.url &&
         (tab.url.includes("intentionality.app/login") ||
-            tab.url.includes("127.0.0.1:5500/intentionality-lander/login.html"))
+            tab.url.includes("intentionality.app/login.html"))
     ) {
         chrome.scripting.executeScript({
             target: { tabId: tabId },
