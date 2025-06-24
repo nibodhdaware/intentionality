@@ -12,7 +12,6 @@
         "tabs",
         "webNavigation",
         "notifications",
-        "identity",
         "scripting"
     ],
     "action": {
