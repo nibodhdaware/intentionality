@@ -43,9 +43,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 },
                 function (response) {
                     if (response && response.status === "success") {
-                        setTimeout(() => {
-                            window.close();
-                        }, 1000);
+                        // Instead of window.close(), show a message
+                        proceedButton.innerText = "You may now close this tab.";
+                        proceedButton.disabled = true;
                     } else {
                         console.error("Failed to proceed to URL:", response);
                         proceedButton.disabled = false;
@@ -54,14 +54,18 @@ document.addEventListener("DOMContentLoaded", function () {
             );
         } else {
             console.error(
-                "Missing originalTabId or originalUrl to proceed. Closing prompt.",
+                "Missing originalTabId or originalUrl to proceed. Please close this tab.",
             );
-            window.close();
+            // Show a message instead of closing
+            proceedButton.innerText = "You may now close this tab.";
+            proceedButton.disabled = true;
         }
     });
 
     cancelButton.addEventListener("click", function () {
-        window.close();
+        // Show a message instead of closing
+        cancelButton.innerText = "You may now close this tab.";
+        cancelButton.disabled = true;
     });
 });
 
