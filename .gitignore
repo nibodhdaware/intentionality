@@ -1,4 +1,9 @@
 intentionality-lander/
-Archive.zip
+*.zip
 intentionality-extension/
 Marketing/
+
+# Ignore Chrome extension zip files for webstore uploads
+*.crx
+*.xpi
+*.nex
