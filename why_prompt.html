@@ -89,14 +89,56 @@
             #cancelButton:hover {
                 background-color: #5a6268;
             }
+            /* --- DARK MODE SUPPORT --- */
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --calm-blue: #8ec6ff;
+                    --zen-light: #181a1b;
+                    --zen-dark: #f1f1f1;
+                }
+                body {
+                    background-color: var(--zen-light);
+                    color: var(--zen-dark);
+                }
+                .container {
+                    background-color: #23272a;
+                    color: var(--zen-dark);
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+                }
+                h1,
+                p {
+                    color: var(--calm-blue);
+                }
+                input[type="text"],
+                select {
+                    background-color: #23272a;
+                    color: var(--zen-dark);
+                    border: 1px solid #444;
+                }
+                input[type="text"]:focus,
+                select:focus {
+                    border-color: var(--calm-blue);
+                    box-shadow: 0 0 0 2px rgba(142, 198, 255, 0.15);
+                }
+                button,
+                #cancelButton {
+                    background-color: var(--calm-blue);
+                    color: #181a1b;
+                }
+                button:hover,
+                #cancelButton:hover {
+                    background-color: #4a90e2;
+                    color: #fff;
+                }
+            }
         </style>
     </head>
     <body
-        class="flex flex-col items-center justify-center h-screen m-0 bg-zen-light p-5 text-center"
+        class="flex flex-col items-center justify-center h-screen m-0 p-5 text-center"
     >
         <div
             id="loginContainer"
-            class="container bg-white p-10 rounded-lg shadow-xl max-w-lg"
+            class="container p-10 rounded-lg shadow-xl max-w-lg"
             style="display: none"
         >
             <h1 class="text-4xl text-calm-blue mb-5 font-bold">
@@ -112,10 +154,7 @@
                 Login with Google
             </button>
         </div>
-        <div
-            id="mainUI"
-            class="container bg-white p-10 rounded-lg shadow-xl max-w-lg"
-        >
+        <div id="mainUI" class="container p-10 rounded-lg shadow-xl max-w-lg">
             <h1 class="text-4xl text-calm-blue mb-5 font-bold">
                 Why do you want to open this site?
             </h1>

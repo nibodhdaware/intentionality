@@ -284,6 +284,87 @@
                 color: var(--zen-dark);
                 text-decoration: underline;
             }
+            /* --- DARK MODE SUPPORT --- */
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --calm-blue: #8ec6ff;
+                    --zen-light: #181a1b;
+                    --zen-dark: #f1f1f1;
+                }
+                body {
+                    background-color: var(--zen-light);
+                    color: var(--zen-dark);
+                }
+                .container {
+                    background-color: #23272a;
+                    color: var(--zen-dark);
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+                }
+                h2,
+                h3,
+                .stats-section-item h4 {
+                    color: var(--calm-blue);
+                }
+                input,
+                .date-selector input[type="date"] {
+                    background-color: #23272a;
+                    color: var(--zen-dark);
+                    border: 1px solid #444;
+                }
+                input:focus,
+                .date-selector input[type="date"]:focus {
+                    border-color: var(--calm-blue);
+                    box-shadow: 0 0 0 3px rgba(142, 198, 255, 0.15);
+                }
+                button,
+                .migrate-btn,
+                .signin-button {
+                    background-color: var(--calm-blue);
+                    color: #181a1b;
+                }
+                button:hover,
+                .migrate-btn:hover,
+                .signin-button:hover {
+                    background-color: #4a90e2;
+                    color: #fff;
+                }
+                .blocked-sites,
+                .stats-section-item {
+                    background-color: #23272a;
+                    color: var(--zen-dark);
+                }
+                #blockedSitesList,
+                .stats-section-item {
+                    background-color: #23272a;
+                    border: 1px solid #333;
+                }
+                .site-item span {
+                    color: var(--zen-dark);
+                }
+                .remove-btn {
+                    background-color: #e74c3c;
+                    color: #fff;
+                }
+                .remove-btn:hover {
+                    background-color: #c0392b;
+                }
+                .chart-container {
+                    background-color: #23272a;
+                }
+                .chart-overlay {
+                    background: rgba(24, 26, 27, 0.95);
+                }
+                .signin-message,
+                .migration-status {
+                    color: var(--zen-dark);
+                }
+                .report-issue-link a {
+                    color: var(--calm-blue);
+                }
+                .report-issue-link a:hover {
+                    color: #fff;
+                }
+            }
         </style>
     </head>
     <body>
