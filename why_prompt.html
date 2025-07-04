@@ -166,12 +166,16 @@
                 id="reasonInput"
                 placeholder="Your reason here..."
                 class="w-full p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-calm-blue"
+                required
             />
             <select
                 id="dumbReasonDropdown"
                 class="w-full p-3 mb-5 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-calm-blue"
+                required
             >
-                <option value="">How dumb is this reason? 🤔</option>
+                <option value="" disabled selected>
+                    How dumb is this reason? 🤔
+                </option>
                 <option value="productive">Actually Productive! 🎯</option>
                 <option value="slightly_distracted">
                     Slightly Distracted 😅
@@ -182,6 +186,10 @@
                     Extremely Distracted 🤦‍♂️
                 </option>
             </select>
+            <div
+                id="validationMessage"
+                style="color: #e74c3c; margin-bottom: 10px; display: none"
+            ></div>
             <button
                 id="proceedButton"
                 class="bg-calm-blue text-white py-3 px-6 rounded-md cursor-pointer hover:bg-zen-dark transition duration-300 ease-in-out block w-full mb-3"
@@ -196,5 +204,33 @@
             </button>
         </div>
         <script src="why_prompt.js"></script>
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const proceedButton = document.getElementById("proceedButton");
+                const reasonInput = document.getElementById("reasonInput");
+                const dumbReasonDropdown =
+                    document.getElementById("dumbReasonDropdown");
+                const validationMessage =
+                    document.getElementById("validationMessage");
+                proceedButton.addEventListener("click", function (e) {
+                    let valid = true;
+                    validationMessage.style.display = "none";
+                    if (!reasonInput.value.trim()) {
+                        valid = false;
+                        reasonInput.focus();
+                    }
+                    if (!dumbReasonDropdown.value) {
+                        valid = false;
+                        dumbReasonDropdown.focus();
+                        validationMessage.textContent =
+                            "Please select how dumb your reason is.";
+                        validationMessage.style.display = "block";
+                    }
+                    if (!valid) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        </script>
     </body>
 </html>

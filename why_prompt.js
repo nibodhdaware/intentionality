@@ -17,9 +17,39 @@ document.addEventListener("DOMContentLoaded", function () {
     const originalUrl = urlParams.get("url");
     const originalTabId = parseInt(urlParams.get("tabId")); // Get tabId as integer
 
-    proceedButton.addEventListener("click", async function () {
+    proceedButton.addEventListener("click", async function (e) {
         const reason = reasonInput.value.trim();
         const dumbReason = dumbReasonDropdown.value;
+        // Validation: both fields must be filled
+        let valid = true;
+        let validationMessage = document.getElementById("validationMessage");
+        if (!validationMessage) {
+            validationMessage = document.createElement("div");
+            validationMessage.id = "validationMessage";
+            validationMessage.style.color = "#e74c3c";
+            validationMessage.style.marginBottom = "10px";
+            proceedButton.parentNode.insertBefore(
+                validationMessage,
+                proceedButton,
+            );
+        }
+        validationMessage.style.display = "none";
+        if (!reason) {
+            valid = false;
+            reasonInput.focus();
+            validationMessage.textContent = "Please enter your reason.";
+            validationMessage.style.display = "block";
+        } else if (!dumbReason) {
+            valid = false;
+            dumbReasonDropdown.focus();
+            validationMessage.textContent =
+                "Please select how dumb your reason is.";
+            validationMessage.style.display = "block";
+        }
+        if (!valid) {
+            e.preventDefault();
+            return;
+        }
 
         // Try to save to Firestore first, fallback to Chrome storage
         try {
