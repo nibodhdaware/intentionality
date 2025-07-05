@@ -474,6 +474,21 @@ chrome.webNavigation.onBeforeNavigate.addListener(
     { url: [{ schemes: ["http", "https"] }] },
 );
 
+// Listen for extension installation
+chrome.runtime.onInstalled.addListener(function (details) {
+    if (details.reason === "install") {
+        console.log("Extension installed - redirecting to login");
+
+        // Open the login page in a new tab
+        chrome.tabs.create({
+            url: "https://intentionality.app/login.html",
+        });
+    }
+});
+
+// Set uninstall URL to redirect to feedback form
+chrome.runtime.setUninstallURL("https://forms.gle/xHuRVeYARy1LVXA47");
+
 // Inject content script for login page communication
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (
