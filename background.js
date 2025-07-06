@@ -1,5 +1,278 @@
 let temporarilyAllowedUrls = []; // Stores objects like { tabId: 123, url: "https://example.com" }
 
+// Check if we have blocking permissions
+async function hasBlockingPermissions() {
+    return new Promise((resolve) => {
+        chrome.permissions.contains(
+            {
+                permissions: ["tabs", "webNavigation"],
+                origins: ["<all_urls>"],
+            },
+            resolve,
+        );
+    });
+}
+
+// Request blocking permissions
+async function requestBlockingPermissions() {
+    return new Promise((resolve) => {
+        chrome.permissions.request(
+            {
+                permissions: ["tabs", "webNavigation"],
+                origins: ["<all_urls>"],
+            },
+            (granted) => {
+                if (granted) {
+                    // Enable automatic blocking after permissions granted
+                    enableAutomaticBlocking();
+                }
+                resolve(granted);
+            },
+        );
+    });
+}
+
+// Enable automatic blocking functionality
+function enableAutomaticBlocking() {
+    console.log("Automatic blocking enabled");
+    // The webNavigation listener will be set up when permissions are granted
+    setupWebNavigationListener();
+}
+
+// Setup webNavigation listener for blocking
+function setupWebNavigationListener() {
+    // Listen for navigation events - only block direct user navigation
+    chrome.webNavigation.onBeforeNavigate.addListener(
+        async function (details) {
+            // Only handle main frame navigation (frameId === 0) that is user-initiated
+            if (details.frameId !== 0) {
+                return; // Skip iframes and sub-frames
+            }
+
+            // Skip if this is a background request or embed
+            if (details.parentFrameId !== -1) {
+                return; // Skip embedded content
+            }
+
+            // If the navigation is to our why_prompt.html, we don't want to re-block it.
+            if (
+                details.url.startsWith(chrome.runtime.getURL("why_prompt.html"))
+            ) {
+                return;
+            }
+
+            // Skip chrome://, chrome-extension://, and other safe protocols
+            if (
+                details.url.startsWith("chrome://") ||
+                details.url.startsWith("chrome-extension://") ||
+                details.url.startsWith("moz-extension://") ||
+                details.url.startsWith("about:") ||
+                details.url.startsWith("data:")
+            ) {
+                return;
+            }
+
+            // Check if this URL for this tabId is temporarily allowed
+            const allowedIndex = temporarilyAllowedUrls.findIndex(
+                (item) =>
+                    item.tabId === details.tabId && item.url === details.url,
+            );
+
+            if (allowedIndex > -1) {
+                temporarilyAllowedUrls.splice(allowedIndex, 1); // Remove from allowed list after use
+                return; // Allow navigation to proceed
+            }
+
+            const url = new URL(details.url);
+            const hostname = url.hostname;
+
+            // Skip localhost and internal domains
+            if (
+                hostname === "localhost" ||
+                hostname === "127.0.0.1" ||
+                hostname.startsWith("192.168.") ||
+                hostname.startsWith("10.") ||
+                hostname.startsWith("172.")
+            ) {
+                return;
+            }
+
+            // Skip common safe domains that shouldn't be blocked
+            const safeDomains = [
+                "google.com",
+                "google.co.uk",
+                "google.ca",
+                "google.com.au",
+                "google.de",
+                "google.fr",
+                "google.it",
+                "google.es",
+                "google.nl",
+                "google.se",
+                "google.no",
+                "google.dk",
+                "google.fi",
+                "google.pl",
+                "google.ru",
+                "google.co.jp",
+                "google.co.kr",
+                "google.com.br",
+                "google.com.mx",
+                "google.com.ar",
+                "google.cl",
+                "google.co.za",
+                "google.co.in",
+                "google.com.sg",
+                "google.com.my",
+                "google.com.ph",
+                "google.co.th",
+                "google.co.id",
+                "google.com.vn",
+                "google.com.tr",
+                "google.com.ua",
+                "google.com.eg",
+                "google.com.sa",
+                "google.ae",
+                "google.com.ng",
+                "google.co.ke",
+                "google.com.gh",
+                "google.co.ug",
+                "google.co.tz",
+                "google.co.zw",
+                "google.co.bw",
+                "google.co.na",
+                "google.co.za",
+                "google.com.au",
+                "google.co.nz",
+                "google.com.fj",
+                "google.com.pg",
+                "google.com.sb",
+                "google.com.vu",
+                "google.com.nc",
+                "google.com.pf",
+                "google.com.ws",
+                "google.com.to",
+                "google.com.ck",
+                "google.com.nu",
+                "google.com.tk",
+                "google.com.tv",
+                "google.com.ki",
+                "google.com.nr",
+                "google.com.pw",
+                "google.com.mh",
+                "google.com.fm",
+                "google.com.mh",
+                "google.com.pw",
+                "google.com.nr",
+                "google.com.ki",
+                "google.com.tv",
+                "google.com.tk",
+                "google.com.nu",
+                "google.com.ck",
+                "google.com.to",
+                "google.com.ws",
+                "google.com.pf",
+                "google.com.nc",
+                "google.com.vu",
+                "google.com.sb",
+                "google.com.pg",
+                "google.com.fj",
+                "google.co.nz",
+                "google.com.au",
+                "google.co.za",
+                "google.co.bw",
+                "google.co.na",
+                "google.co.zw",
+                "google.co.tz",
+                "google.co.ug",
+                "google.com.gh",
+                "google.co.ke",
+                "google.com.ng",
+                "google.ae",
+                "google.com.sa",
+                "google.com.eg",
+                "google.com.ua",
+                "google.com.tr",
+                "google.com.vn",
+                "google.co.id",
+                "google.co.th",
+                "google.com.ph",
+                "google.com.my",
+                "google.com.sg",
+                "google.co.in",
+                "google.co.za",
+                "google.com.br",
+                "google.com.mx",
+                "google.com.ar",
+                "google.cl",
+                "google.co.kr",
+                "google.co.jp",
+                "google.ru",
+                "google.pl",
+                "google.fi",
+                "google.dk",
+                "google.no",
+                "google.se",
+                "google.nl",
+                "google.es",
+                "google.it",
+                "google.fr",
+                "google.de",
+                "google.ca",
+                "google.co.uk",
+                "bing.com",
+                "yahoo.com",
+                "duckduckgo.com",
+                "baidu.com",
+                "yandex.com",
+                "github.com",
+                "stackoverflow.com",
+                "wikipedia.org",
+                "mozilla.org",
+                "microsoft.com",
+                "apple.com",
+                "amazon.com",
+                "netflix.com",
+                "spotify.com",
+                "discord.com",
+                "slack.com",
+                "zoom.us",
+                "teams.microsoft.com",
+                "webex.com",
+                "gotomeeting.com",
+                "intentionality.app",
+            ];
+
+            if (
+                safeDomains.some(
+                    (safeDomain) =>
+                        hostname === safeDomain ||
+                        hostname.endsWith("." + safeDomain),
+                )
+            ) {
+                return; // Skip safe domains
+            }
+
+            // Only check for exact hostname matches, not redirects
+            // This prevents blocking when the user is redirected from a blocked site to an allowed site
+            const isBlocked = await checkIfSiteBlocked(hostname);
+
+            if (isBlocked) {
+                console.log(`Blocking navigation to: ${hostname}`);
+                // Create a blocking page
+                chrome.tabs.update(details.tabId, {
+                    url: chrome.runtime.getURL(
+                        `why_prompt.html?url=${encodeURIComponent(
+                            details.url,
+                        )}&tabId=${details.tabId}`,
+                    ),
+                });
+            }
+        },
+        { url: [{ schemes: ["http", "https"] }] },
+    );
+}
+
 // Function to create daily summary
 function createDailySummary(activityLog) {
     const today = new Date();
@@ -153,28 +426,53 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
                 url: request.url,
             });
 
-            // Directly update the original tab to the requested URL
-            chrome.tabs.update(
-                request.tabId,
-                { url: request.url },
-                function () {
-                    if (chrome.runtime.lastError) {
-                        console.error(
-                            "Error updating tab: ",
-                            chrome.runtime.lastError.message,
-                        );
-                        sendResponse({
-                            status: "error",
-                            message: chrome.runtime.lastError.message,
-                        });
-                    } else {
-                        // Wait for the navigation to start before sending success
-                        setTimeout(() => {
-                            sendResponse({ status: "success" });
-                        }, 500);
-                    }
-                },
-            );
+            // Check if we have tabs permission before updating
+            hasBlockingPermissions().then((hasPermissions) => {
+                if (hasPermissions) {
+                    // Directly update the original tab to the requested URL
+                    chrome.tabs.update(
+                        request.tabId,
+                        { url: request.url },
+                        function () {
+                            if (chrome.runtime.lastError) {
+                                console.error(
+                                    "Error updating tab: ",
+                                    chrome.runtime.lastError.message,
+                                );
+                                sendResponse({
+                                    status: "error",
+                                    message: chrome.runtime.lastError.message,
+                                });
+                            } else {
+                                // Wait for the navigation to start before sending success
+                                setTimeout(() => {
+                                    sendResponse({ status: "success" });
+                                }, 500);
+                            }
+                        },
+                    );
+                } else {
+                    // Fallback: use activeTab to update current tab
+                    chrome.tabs.query(
+                        { active: true, currentWindow: true },
+                        function (tabs) {
+                            if (tabs[0]) {
+                                chrome.tabs.update(tabs[0].id, {
+                                    url: request.url,
+                                });
+                                setTimeout(() => {
+                                    sendResponse({ status: "success" });
+                                }, 500);
+                            } else {
+                                sendResponse({
+                                    status: "error",
+                                    message: "No active tab found",
+                                });
+                            }
+                        },
+                    );
+                }
+            });
             return true; // Keep the message channel open for the async response
         } else {
             sendResponse({ status: "error", message: "Missing tabId or URL" });
@@ -183,6 +481,18 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         // This will be handled by the popup if it's open
         // For now, return null to indicate fallback to Chrome storage
         sendResponse({ success: false, blockedSites: null });
+    } else if (request.action === "requestBlockingPermissions") {
+        // Handle permission request from popup
+        requestBlockingPermissions().then((granted) => {
+            sendResponse({ granted: granted });
+        });
+        return true; // Keep the message channel open for the async response
+    } else if (request.action === "checkBlockingPermissions") {
+        // Check if we have blocking permissions
+        hasBlockingPermissions().then((hasPermissions) => {
+            sendResponse({ hasPermissions: hasPermissions });
+        });
+        return true; // Keep the message channel open for the async response
     } else if (request.type === "LOGIN_SUCCESS") {
         // Handle login success from the login page
         console.log("Login success received in background script");
@@ -246,234 +556,6 @@ chrome.runtime.onMessageExternal.addListener(
     },
 );
 
-// Listen for navigation events - only block direct user navigation
-chrome.webNavigation.onBeforeNavigate.addListener(
-    async function (details) {
-        // Only handle main frame navigation (frameId === 0) that is user-initiated
-        if (details.frameId !== 0) {
-            return; // Skip iframes and sub-frames
-        }
-
-        // Skip if this is a background request or embed
-        if (details.parentFrameId !== -1) {
-            return; // Skip embedded content
-        }
-
-        // If the navigation is to our why_prompt.html, we don't want to re-block it.
-        if (details.url.startsWith(chrome.runtime.getURL("why_prompt.html"))) {
-            return;
-        }
-
-        // Skip chrome://, chrome-extension://, and other safe protocols
-        if (
-            details.url.startsWith("chrome://") ||
-            details.url.startsWith("chrome-extension://") ||
-            details.url.startsWith("moz-extension://") ||
-            details.url.startsWith("about:") ||
-            details.url.startsWith("data:")
-        ) {
-            return;
-        }
-
-        // Check if this URL for this tabId is temporarily allowed
-        const allowedIndex = temporarilyAllowedUrls.findIndex(
-            (item) => item.tabId === details.tabId && item.url === details.url,
-        );
-
-        if (allowedIndex > -1) {
-            temporarilyAllowedUrls.splice(allowedIndex, 1); // Remove from allowed list after use
-            return; // Allow navigation to proceed
-        }
-
-        const url = new URL(details.url);
-        const hostname = url.hostname;
-
-        // Skip localhost and internal domains
-        if (
-            hostname === "localhost" ||
-            hostname === "127.0.0.1" ||
-            hostname.startsWith("192.168.") ||
-            hostname.startsWith("10.") ||
-            hostname.startsWith("172.")
-        ) {
-            return;
-        }
-
-        // Skip common safe domains that shouldn't be blocked
-        const safeDomains = [
-            "google.com",
-            "google.co.uk",
-            "google.ca",
-            "google.com.au",
-            "google.de",
-            "google.fr",
-            "google.it",
-            "google.es",
-            "google.nl",
-            "google.se",
-            "google.no",
-            "google.dk",
-            "google.fi",
-            "google.pl",
-            "google.ru",
-            "google.co.jp",
-            "google.co.kr",
-            "google.com.br",
-            "google.com.mx",
-            "google.com.ar",
-            "google.cl",
-            "google.co.za",
-            "google.co.in",
-            "google.com.sg",
-            "google.com.my",
-            "google.com.ph",
-            "google.co.th",
-            "google.co.id",
-            "google.com.vn",
-            "google.com.tr",
-            "google.com.ua",
-            "google.com.eg",
-            "google.com.sa",
-            "google.ae",
-            "google.com.ng",
-            "google.co.ke",
-            "google.com.gh",
-            "google.co.ug",
-            "google.co.tz",
-            "google.co.zw",
-            "google.co.bw",
-            "google.co.na",
-            "google.co.za",
-            "google.com.au",
-            "google.co.nz",
-            "google.com.fj",
-            "google.com.pg",
-            "google.com.sb",
-            "google.com.vu",
-            "google.com.nc",
-            "google.com.pf",
-            "google.com.ws",
-            "google.com.to",
-            "google.com.ck",
-            "google.com.nu",
-            "google.com.tk",
-            "google.com.tv",
-            "google.com.ki",
-            "google.com.nr",
-            "google.com.pw",
-            "google.com.mh",
-            "google.com.fm",
-            "google.com.mh",
-            "google.com.pw",
-            "google.com.nr",
-            "google.com.ki",
-            "google.com.tv",
-            "google.com.tk",
-            "google.com.nu",
-            "google.com.ck",
-            "google.com.to",
-            "google.com.ws",
-            "google.com.pf",
-            "google.com.nc",
-            "google.com.vu",
-            "google.com.sb",
-            "google.com.pg",
-            "google.com.fj",
-            "google.co.nz",
-            "google.com.au",
-            "google.co.za",
-            "google.co.bw",
-            "google.co.na",
-            "google.co.zw",
-            "google.co.tz",
-            "google.co.ug",
-            "google.com.gh",
-            "google.co.ke",
-            "google.com.ng",
-            "google.ae",
-            "google.com.sa",
-            "google.com.eg",
-            "google.com.ua",
-            "google.com.tr",
-            "google.com.vn",
-            "google.co.id",
-            "google.co.th",
-            "google.com.ph",
-            "google.com.my",
-            "google.com.sg",
-            "google.co.in",
-            "google.co.za",
-            "google.com.br",
-            "google.com.mx",
-            "google.com.ar",
-            "google.cl",
-            "google.co.kr",
-            "google.co.jp",
-            "google.ru",
-            "google.pl",
-            "google.fi",
-            "google.dk",
-            "google.no",
-            "google.se",
-            "google.nl",
-            "google.es",
-            "google.it",
-            "google.fr",
-            "google.de",
-            "google.ca",
-            "google.co.uk",
-            "bing.com",
-            "yahoo.com",
-            "duckduckgo.com",
-            "baidu.com",
-            "yandex.com",
-            "github.com",
-            "stackoverflow.com",
-            "wikipedia.org",
-            "mozilla.org",
-            "microsoft.com",
-            "apple.com",
-            "amazon.com",
-            "netflix.com",
-            "spotify.com",
-            "discord.com",
-            "slack.com",
-            "zoom.us",
-            "teams.microsoft.com",
-            "webex.com",
-            "gotomeeting.com",
-            "intentionality.app",
-        ];
-
-        if (
-            safeDomains.some(
-                (safeDomain) =>
-                    hostname === safeDomain ||
-                    hostname.endsWith("." + safeDomain),
-            )
-        ) {
-            return; // Skip safe domains
-        }
-
-        // Only check for exact hostname matches, not redirects
-        // This prevents blocking when the user is redirected from a blocked site to an allowed site
-        const isBlocked = await checkIfSiteBlocked(hostname);
-
-        if (isBlocked) {
-            console.log(`Blocking navigation to: ${hostname}`);
-            // Create a blocking page
-            chrome.tabs.update(details.tabId, {
-                url: chrome.runtime.getURL(
-                    `why_prompt.html?url=${encodeURIComponent(
-                        details.url,
-                    )}&tabId=${details.tabId}`,
-                ),
-            });
-        }
-    },
-    { url: [{ schemes: ["http", "https"] }] },
-);
-
 // Listen for extension installation
 chrome.runtime.onInstalled.addListener(function (details) {
     if (details.reason === "install") {
@@ -489,7 +571,7 @@ chrome.runtime.onInstalled.addListener(function (details) {
 // Set uninstall URL to redirect to feedback form
 chrome.runtime.setUninstallURL("https://forms.gle/xHuRVeYARy1LVXA47");
 
-// Inject content script for login page communication
+// Inject content script for login page communication (only if we have permissions)
 chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (
         changeInfo.status === "complete" &&
@@ -497,9 +579,14 @@ chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
         (tab.url.includes("intentionality.app/login") ||
             tab.url.includes("intentionality.app/login.html"))
     ) {
-        chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            function: injectLoginCommunication,
+        // Check if we have scripting permission before injecting
+        hasBlockingPermissions().then((hasPermissions) => {
+            if (hasPermissions) {
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    function: injectLoginCommunication,
+                });
+            }
         });
     }
 });
@@ -534,3 +621,152 @@ function injectLoginCommunication() {
         }
     };
 }
+
+// Initialize: Check if we already have blocking permissions and enable if so
+hasBlockingPermissions().then((hasPermissions) => {
+    if (hasPermissions) {
+        enableAutomaticBlocking();
+    } else {
+        // Even without blocking permissions, we can monitor tabs and show notifications
+        setupTabMonitoring();
+    }
+});
+
+// Setup tab monitoring for manual blocking (when automatic blocking is not enabled)
+function setupTabMonitoring() {
+    console.log("Setting up tab monitoring for manual blocking");
+
+    // Monitor tab updates to detect when user visits blocked sites
+    chrome.tabs.onUpdated.addListener(async function (tabId, changeInfo, tab) {
+        // Only check when page is complete and has a URL
+        if (changeInfo.status === "complete" && tab.url) {
+            try {
+                const url = new URL(tab.url);
+                const hostname = url.hostname;
+
+                // Skip chrome://, chrome-extension://, and other safe protocols
+                if (
+                    tab.url.startsWith("chrome://") ||
+                    tab.url.startsWith("chrome-extension://") ||
+                    tab.url.startsWith("moz-extension://") ||
+                    tab.url.startsWith("about:") ||
+                    tab.url.startsWith("data:")
+                ) {
+                    return;
+                }
+
+                // Skip localhost and internal domains
+                if (
+                    hostname === "localhost" ||
+                    hostname === "127.0.0.1" ||
+                    hostname.startsWith("192.168.") ||
+                    hostname.startsWith("10.") ||
+                    hostname.startsWith("172.")
+                ) {
+                    return;
+                }
+
+                // Check if this site is blocked
+                const isBlocked = await checkIfSiteBlocked(hostname);
+
+                if (isBlocked) {
+                    console.log(`Detected visit to blocked site: ${hostname}`);
+                    showBlockedSiteNotification(tabId, tab.url, hostname);
+                }
+            } catch (error) {
+                console.error("Error monitoring tab:", error);
+            }
+        }
+    });
+}
+
+// Show notification when user visits a blocked site
+function showBlockedSiteNotification(tabId, url, hostname) {
+    // Create a notification to alert the user
+    chrome.notifications.create(
+        {
+            type: "basic",
+            iconUrl: "icons/icon128.png",
+            title: "Intentionality - Blocked Site Detected",
+            message: `You're visiting ${hostname} which is in your block list. Click to open blocking options.`,
+            priority: 2,
+            requireInteraction: true, // Keep notification until user interacts
+            buttons: [
+                { title: "Block This Site" },
+                { title: "Enable Auto-Blocking" },
+            ],
+        },
+        (notificationId) => {
+            // Store notification data for later use
+            chrome.storage.local.set({
+                [`notification_${notificationId}`]: {
+                    tabId: tabId,
+                    url: url,
+                    hostname: hostname,
+                    timestamp: Date.now(),
+                },
+            });
+        },
+    );
+}
+
+// Listen for notification clicks
+chrome.notifications.onClicked.addListener((notificationId) => {
+    // Open the extension popup when notification is clicked
+    chrome.action.openPopup();
+});
+
+// Listen for notification button clicks
+chrome.notifications.onButtonClicked.addListener(
+    (notificationId, buttonIndex) => {
+        chrome.storage.local.get(
+            [`notification_${notificationId}`],
+            (result) => {
+                const notificationData =
+                    result[`notification_${notificationId}`];
+                if (notificationData) {
+                    if (buttonIndex === 0) {
+                        // "Block This Site" button clicked
+                        const whyPromptUrl = chrome.runtime.getURL(
+                            `why_prompt.html?url=${encodeURIComponent(
+                                notificationData.url,
+                            )}&tabId=${notificationData.tabId}`,
+                        );
+                        chrome.tabs.create({ url: whyPromptUrl });
+                    } else if (buttonIndex === 1) {
+                        // "Enable Auto-Blocking" button clicked
+                        requestBlockingPermissions().then((granted) => {
+                            if (granted) {
+                                // Show success notification
+                                chrome.notifications.create({
+                                    type: "basic",
+                                    iconUrl: "icons/icon128.png",
+                                    title: "Intentionality - Automatic Blocking Enabled",
+                                    message:
+                                        "Automatic blocking is now active!",
+                                    priority: 1,
+                                });
+                            } else {
+                                // Show error notification
+                                chrome.notifications.create({
+                                    type: "basic",
+                                    iconUrl: "icons/icon128.png",
+                                    title: "Intentionality - Permission Denied",
+                                    message:
+                                        "Automatic blocking was not enabled. You can still block sites manually.",
+                                    priority: 1,
+                                });
+                            }
+                        });
+                    }
+                }
+
+                // Clear the notification data
+                chrome.storage.local.remove([`notification_${notificationId}`]);
+
+                // Clear the notification
+                chrome.notifications.clear(notificationId);
+            },
+        );
+    },
+);

@@ -8,15 +8,15 @@
     "author": "Intentionality Team",
     "oauth2": {
         "client_id": "938266027514-vgh2o1odih2hbqpae8h2qe0kbe1ugk94.apps.googleusercontent.com",
-        "scopes": ["email", "profile"]
+        "scopes": [
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ]
     },
-    "permissions": [
-        "storage",
-        "tabs",
-        "webNavigation",
-        "notifications",
-        "scripting"
-    ],
+    "permissions": ["storage", "activeTab", "scripting", "notifications"],
+    "optional_permissions": ["tabs", "webNavigation"],
+    "optional_host_permissions": ["<all_urls>"],
+    "host_permissions": ["https://intentionality.app/*"],
     "action": {
         "default_popup": "popup.html",
         "default_icon": {
@@ -31,7 +31,7 @@
     "web_accessible_resources": [
         {
             "resources": ["why_prompt.html", "lib/*"],
-            "matches": ["<all_urls>"]
+            "matches": ["https://intentionality.app/*"]
         }
     ],
     "icons": {

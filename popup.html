@@ -284,6 +284,20 @@
                 color: var(--zen-dark);
                 text-decoration: underline;
             }
+            .support-me-link {
+                margin-top: 15px;
+                text-align: center;
+                font-size: 0.9rem;
+            }
+            .support-me-link a {
+                color: var(--calm-blue);
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+            .support-me-link a:hover {
+                color: var(--zen-dark);
+                text-decoration: underline;
+            }
             /* --- DARK MODE SUPPORT --- */
             @media (prefers-color-scheme: dark) {
                 :root {
@@ -364,6 +378,12 @@
                 .report-issue-link a:hover {
                     color: #fff;
                 }
+                .support-me-link a {
+                    color: var(--calm-blue);
+                }
+                .support-me-link a:hover {
+                    color: #fff;
+                }
             }
         </style>
     </head>
@@ -415,12 +435,20 @@
                     <div id="migrationStatus" class="migration-status"></div>
                 </div>
                 <div class="report-issue-link">
-                    <a
-                        href="https://intentionality.app/add-issue.html"
-                        target="_blank"
-                    >
-                        Report an Issue
-                    </a>
+                  <a
+                      href="https://intentionality.app/add-issue.html"
+                      target="_blank"
+                  >
+                      Report an Issue
+                  </a>
+                </div>
+                <div class="support-me-link">
+                  <a
+                      href="https://buymeacoffee.com/x2ysmcrylt"
+                      target="_blank"
+                  >
+                      Support the Project
+                  </a>
                 </div>
             </div>
         </div>
