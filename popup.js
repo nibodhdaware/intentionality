@@ -19,30 +19,6 @@ async function getCurrentUserId() {
     });
 }
 
-// Check if we have blocking permissions
-async function hasBlockingPermissions() {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-            { action: "checkBlockingPermissions" },
-            (response) => {
-                resolve(response && response.hasPermissions);
-            },
-        );
-    });
-}
-
-// Request blocking permissions
-async function requestBlockingPermissions() {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-            { action: "requestBlockingPermissions" },
-            (response) => {
-                resolve(response && response.granted);
-            },
-        );
-    });
-}
-
 // Check if a site is blocked (helper function)
 async function checkIfSiteBlocked(hostname) {
     return new Promise((resolve) => {
@@ -54,335 +30,6 @@ async function checkIfSiteBlocked(hostname) {
             resolve(isBlocked);
         });
     });
-}
-
-// Show permission request dialog
-function showPermissionRequestDialog() {
-    return new Promise((resolve) => {
-        // Create overlay
-        const overlay = document.createElement("div");
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        `;
-
-        // Create dialog
-        const dialog = document.createElement("div");
-        dialog.style.cssText = `
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            max-width: 400px;
-            margin: 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        `;
-
-        dialog.innerHTML = `
-            <h3 style="margin: 0 0 16px 0; color: #18344A; font-size: 18px;">
-                Enable Automatic Blocking
-            </h3>
-            <p style="margin: 0 0 16px 0; color: #666; line-height: 1.5;">
-                To automatically block distracting websites, Intentionality needs permission to monitor your browsing.
-            </p>
-            <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-                This allows the extension to show the "Why are you visiting?" prompt when you try to visit blocked sites.
-            </p>
-            <div style="display: flex; gap: 12px; justify-content: flex-end; align-items: center;">
-                <button id="skip-permission" style="
-                    padding: 8px 16px;
-                    border: 1px solid #ddd;
-                    background: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    color: #666;
-                ">Skip (Manual Mode)</button>
-                <button id="grant-permission" style="
-                    width: 40px;
-                    height: 40px;
-                    border: none;
-                    background: #4A90A4;
-                    color: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-weight: 500;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 12px;
-                ">✓</button>
-            </div>
-        `;
-
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
-
-        // Event listeners
-        document.getElementById("grant-permission").onclick = async () => {
-            const granted = await requestBlockingPermissions();
-            overlay.remove();
-            resolve(granted);
-        };
-
-        document.getElementById("skip-permission").onclick = () => {
-            overlay.remove();
-            resolve(false);
-        };
-    });
-}
-
-// Show manual blocking mode message
-function showManualBlockingMessage() {
-    const message = document.createElement("div");
-    message.style.cssText = `
-        background: #f0f8ff;
-        border: 1px solid #4A90A4;
-        border-radius: 8px;
-        padding: 12px;
-        margin: 12px 0;
-        color: #18344A;
-        font-size: 14px;
-    `;
-    message.innerHTML = `
-        <strong>Manual Blocking Mode</strong><br>
-        You can still block sites, but you'll need to check manually via the popup. 
-        To enable automatic blocking, click the extension icon and grant permissions.
-    `;
-
-    // Insert after the blocked sites list
-    const blockedSitesList = document.getElementById("blockedSitesList");
-    blockedSitesList.parentNode.insertBefore(
-        message,
-        blockedSitesList.nextSibling,
-    );
-}
-
-// Check current tab for blocking
-async function checkCurrentTabForBlocking() {
-    try {
-        const [tab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true,
-        });
-        if (tab && tab.url) {
-            const hostname = new URL(tab.url).hostname;
-            const isBlocked = await checkIfSiteBlocked(hostname);
-
-            if (isBlocked) {
-                showManualBlockingPopup(tab.url, hostname);
-            }
-        }
-    } catch (error) {
-        console.error("Error checking current tab:", error);
-    }
-}
-
-// Show manual blocking popup when visiting blocked site
-function showManualBlockingPopup(url, hostname) {
-    // Create overlay
-    const overlay = document.createElement("div");
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.8);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-
-    // Create popup
-    const popup = document.createElement("div");
-    popup.style.cssText = `
-        background: white;
-        padding: 24px;
-        border-radius: 12px;
-        max-width: 400px;
-        margin: 20px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        text-align: center;
-    `;
-
-    popup.innerHTML = `
-        <div style="margin-bottom: 20px;">
-            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
-            <h3 style="margin: 0 0 16px 0; color: #18344A; font-size: 18px;">
-                Block This Site?
-            </h3>
-            <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-                You're visiting <strong>${hostname}</strong> which is in your block list.
-                <br><br>
-                Would you like to block this site now?
-            </p>
-        </div>
-        <div style="display: flex; gap: 12px; justify-content: center;">
-            <button id="block-site" style="
-                padding: 12px 24px;
-                border: none;
-                background: #dc3545;
-                color: white;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 500;
-                font-size: 14px;
-            ">Yes, Block This Site</button>
-            <button id="enable-automatic" style="
-                width: 40px;
-                height: 40px;
-                border: none;
-                background: #4A90A4;
-                color: white;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 500;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 12px;
-            " title="Enable Automatic Blocking">✓</button>
-        </div>
-        <div style="margin-top: 16px;">
-            <button id="dismiss-popup" style="
-                padding: 8px 16px;
-                border: 1px solid #ddd;
-                background: white;
-                border-radius: 6px;
-                cursor: pointer;
-                color: #666;
-                font-size: 12px;
-            ">Dismiss</button>
-        </div>
-    `;
-
-    overlay.appendChild(popup);
-    document.body.appendChild(overlay);
-
-    // Event listeners
-    document.getElementById("block-site").onclick = async () => {
-        // Get current tab for tabId
-        const [currentTab] = await chrome.tabs.query({
-            active: true,
-            currentWindow: true,
-        });
-
-        // Show the why_prompt for this site
-        const whyPromptUrl = chrome.runtime.getURL(
-            `why_prompt.html?url=${encodeURIComponent(url)}&tabId=${
-                currentTab.id
-            }`,
-        );
-
-        // Open why_prompt in new tab
-        chrome.tabs.create({ url: whyPromptUrl });
-
-        overlay.remove();
-    };
-
-    document.getElementById("enable-automatic").onclick = async () => {
-        const granted = await requestBlockingPermissions();
-        if (granted) {
-            // Show success message
-            popup.innerHTML = `
-                <div style="margin-bottom: 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
-                    <h3 style="margin: 0 0 16px 0; color: #18344A; font-size: 18px;">
-                        Automatic Blocking Enabled!
-                    </h3>
-                    <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-                        You can now close this popup. Automatic blocking is now active.
-                    </p>
-                </div>
-                <button id="close-popup" style="
-                    padding: 8px 16px;
-                    border: 1px solid #ddd;
-                    background: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    color: #666;
-                ">Close</button>
-            `;
-
-            document.getElementById("close-popup").onclick = () => {
-                overlay.remove();
-            };
-        } else {
-            // Show error message
-            popup.innerHTML = `
-                <div style="margin-bottom: 20px;">
-                    <div style="font-size: 48px; margin-bottom: 16px;">❌</div>
-                    <h3 style="margin: 0 0 16px 0; color: #18344A; font-size: 18px;">
-                        Permission Denied
-                    </h3>
-                    <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-                        Automatic blocking was not enabled. You can still block sites manually.
-                    </p>
-                </div>
-                <button id="close-popup" style="
-                    padding: 8px 16px;
-                    border: 1px solid #ddd;
-                    background: white;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    color: #666;
-                ">Close</button>
-            `;
-
-            document.getElementById("close-popup").onclick = () => {
-                overlay.remove();
-            };
-        }
-    };
-
-    document.getElementById("dismiss-popup").onclick = () => {
-        overlay.remove();
-    };
-}
-
-// Show message when current tab is blocked
-function showCurrentTabBlockedMessage(url, hostname) {
-    const message = document.createElement("div");
-    message.style.cssText = `
-        background: #fff3cd;
-        border: 1px solid #ffc107;
-        border-radius: 8px;
-        padding: 12px;
-        margin: 12px 0;
-        color: #856404;
-        font-size: 14px;
-    `;
-    message.innerHTML = `
-        <strong>⚠️ Current site is blocked</strong><br>
-        You're currently on <strong>${hostname}</strong> which is in your block list.
-        <br><br>
-        <button id="proceed-anyway" style="
-            background: #ffc107;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            color: #856404;
-            font-size: 12px;
-        ">Proceed Anyway</button>
-    `;
-
-    // Insert at the top of the popup
-    const container = document.querySelector(".container");
-    container.insertBefore(message, container.firstChild);
-
-    // Handle proceed anyway button
-    document.getElementById("proceed-anyway").onclick = () => {
-        message.remove();
-    };
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -416,12 +63,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Check and reset state if it's a new day
     checkAndResetDailyState();
-
-    // Check current tab for blocking on popup open
-    checkCurrentTabForBlocking();
-
-    // Check for active blocked site notifications
-    checkForBlockedSiteNotifications();
 
     // Function to check authentication state
     function checkAuthState() {
@@ -650,19 +291,6 @@ document.addEventListener("DOMContentLoaded", function () {
     async function addSite() {
         const site = siteInput.value.trim().toLowerCase();
         if (!site) return;
-
-        // Check if we have blocking permissions
-        const hasPermissions = await hasBlockingPermissions();
-
-        if (!hasPermissions) {
-            // Request permissions before adding site
-            const granted = await showPermissionRequestDialog();
-            if (!granted) {
-                // User denied permissions - show manual blocking message
-                showManualBlockingMessage();
-                // Still add the site to the list for manual checking
-            }
-        }
 
         try {
             // Check if Firebase is available
@@ -1097,17 +725,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Create activity chart
     function createActivityChart(activityLog) {
+        // Check if Chart.js is available
+        if (typeof Chart === "undefined") {
+            console.warn("Chart.js not available, skipping chart creation");
+            return;
+        }
+
         const toDate = (timestamp) => {
             const date = new Date(timestamp);
             return date.toISOString().split("T")[0];
         };
 
         const canvas = document.getElementById("activityChart");
+        if (!canvas) {
+            console.warn("Activity chart canvas not found");
+            return;
+        }
+
         const ctx = canvas.getContext("2d");
 
-        // Clear previous chart
-        if (window.activityChart) {
-            window.activityChart.destroy();
+        // Clear previous chart safely
+        if (
+            window.activityChart &&
+            typeof window.activityChart.destroy === "function"
+        ) {
+            try {
+                window.activityChart.destroy();
+            } catch (error) {
+                console.warn("Error destroying previous chart:", error);
+            }
         }
 
         // Group activities by hour
@@ -1146,72 +792,55 @@ document.addEventListener("DOMContentLoaded", function () {
             distractedData.push(hourlyData[hour]?.distracted || 0);
         }
 
-        // Create chart
-        window.activityChart = new Chart(ctx, {
-            type: "bar",
-            data: {
-                labels: labels,
-                datasets: [
-                    {
-                        label: "Productive",
-                        data: productiveData,
-                        backgroundColor: "#28a745",
-                        borderColor: "#28a745",
-                        borderWidth: 1,
+        // Create chart with error handling
+        try {
+            window.activityChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Productive",
+                            data: productiveData,
+                            backgroundColor: "#28a745",
+                            borderColor: "#28a745",
+                            borderWidth: 1,
+                        },
+                        {
+                            label: "Distracted",
+                            data: distractedData,
+                            backgroundColor: "#ffc107",
+                            borderColor: "#ffc107",
+                            borderWidth: 1,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                            },
+                        },
                     },
-                    {
-                        label: "Distracted",
-                        data: distractedData,
-                        backgroundColor: "#ffc107",
-                        borderColor: "#ffc107",
-                        borderWidth: 1,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: "top",
                         },
                     },
                 },
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: "top",
-                    },
-                },
-            },
-        });
-    }
-
-    // Check for active blocked site notifications
-    function checkForBlockedSiteNotifications() {
-        // Get current tab to check if we should show the popup
-        chrome.tabs.query(
-            { active: true, currentWindow: true },
-            async (tabs) => {
-                if (tabs[0] && tabs[0].url) {
-                    try {
-                        const hostname = new URL(tabs[0].url).hostname;
-                        const isBlocked = await checkIfSiteBlocked(hostname);
-
-                        if (isBlocked) {
-                            // Show the manual blocking popup automatically
-                            showManualBlockingPopup(tabs[0].url, hostname);
-                        }
-                    } catch (error) {
-                        console.error(
-                            "Error checking for blocked site notifications:",
-                            error,
-                        );
-                    }
-                }
-            },
-        );
+            });
+        } catch (error) {
+            console.error("Error creating activity chart:", error);
+            // Hide the chart container if chart creation fails
+            const chartContainer = document.getElementById("chartContainer");
+            if (chartContainer) {
+                chartContainer.style.display = "none";
+            }
+        }
     }
 });

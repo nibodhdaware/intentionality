@@ -204,33 +204,5 @@
             </button>
         </div>
         <script src="why_prompt.js"></script>
-        <script>
-            document.addEventListener("DOMContentLoaded", function () {
-                const proceedButton = document.getElementById("proceedButton");
-                const reasonInput = document.getElementById("reasonInput");
-                const dumbReasonDropdown =
-                    document.getElementById("dumbReasonDropdown");
-                const validationMessage =
-                    document.getElementById("validationMessage");
-                proceedButton.addEventListener("click", function (e) {
-                    let valid = true;
-                    validationMessage.style.display = "none";
-                    if (!reasonInput.value.trim()) {
-                        valid = false;
-                        reasonInput.focus();
-                    }
-                    if (!dumbReasonDropdown.value) {
-                        valid = false;
-                        dumbReasonDropdown.focus();
-                        validationMessage.textContent =
-                            "Please select how dumb your reason is.";
-                        validationMessage.style.display = "block";
-                    }
-                    if (!valid) {
-                        e.preventDefault();
-                    }
-                });
-            });
-        </script>
     </body>
 </html>
