@@ -358,7 +358,11 @@ function setupWebNavigationListener() {
         if (isBlocked) {
             // Block the navigation and show the why prompt
             chrome.tabs.update(details.tabId, {
-                url: chrome.runtime.getURL("why_prompt.html"),
+                url:
+                    chrome.runtime.getURL("why_prompt.html") +
+                    `?url=${encodeURIComponent(details.url)}&tabId=${
+                        details.tabId
+                    }`,
             });
 
             // Store the blocked URL for the why prompt

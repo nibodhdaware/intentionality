@@ -63,30 +63,36 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         // Send message to background.js to proceed with the original tabId
-        if (originalTabId && originalUrl) {
-            proceedButton.disabled = true;
-            chrome.runtime.sendMessage(
-                {
-                    action: "proceedToUrl",
-                    url: originalUrl,
-                    tabId: originalTabId,
-                },
-                function (response) {
-                    if (response && response.status === "success") {
-                        // Instead of window.close(), show a message
-                        proceedButton.innerText = "You may now close this tab.";
-                        proceedButton.disabled = true;
-                    } else {
-                        console.error("Failed to proceed to URL:", response);
-                        proceedButton.disabled = false;
-                    }
-                },
-            );
+        if (originalUrl) {
+            // Try to use the background script if tabId is available
+            if (originalTabId) {
+                proceedButton.disabled = true;
+                chrome.runtime.sendMessage(
+                    {
+                        action: "proceedToUrl",
+                        url: originalUrl,
+                        tabId: originalTabId,
+                    },
+                    function (response) {
+                        if (response && response.status === "success") {
+                            // Instead of window.close(), show a message
+                            proceedButton.innerText =
+                                "You may now close this tab.";
+                            proceedButton.disabled = true;
+                        } else {
+                            // Fallback: redirect directly
+                            window.location.href = originalUrl;
+                        }
+                    },
+                );
+            } else {
+                // No tabId, just redirect
+                window.location.href = originalUrl;
+            }
         } else {
             console.error(
-                "Missing originalTabId or originalUrl to proceed. Please close this tab.",
+                "Missing originalUrl to proceed. Please close this tab.",
             );
-            // Show a message instead of closing
             proceedButton.innerText = "You may now close this tab.";
             proceedButton.disabled = true;
         }
