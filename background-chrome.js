@@ -3,7 +3,7 @@ let temporarilyAllowedUrls = []; // Stores objects like { tabId: 123, url: "http
 // Setup webNavigation listener for blocking
 function setupWebNavigationListener() {
     // Listen for navigation events - only block direct user navigation
-    browser.webNavigation.onBeforeNavigate.addListener(async function (details) {
+    chrome.webNavigation.onBeforeNavigate.addListener(async function (details) {
         // Only handle main frame navigation (frameId === 0) that is user-initiated
         if (details.frameId !== 0) {
             return; // Skip iframes and sub-frames
@@ -15,14 +15,14 @@ function setupWebNavigationListener() {
         }
 
         // If the navigation is to our why_prompt.html, we don't want to re-block it.
-        if (details.url.startsWith(browser.runtime.getURL("why_prompt.html"))) {
+        if (details.url.startsWith(chrome.runtime.getURL("why_prompt.html"))) {
             return;
         }
 
-        // Skip browser://, browser-extension://, and other safe protocols
+        // Skip chrome://, chrome-extension://, and other safe protocols
         if (
-            details.url.startsWith("browser://") ||
-            details.url.startsWith("browser-extension://") ||
+            details.url.startsWith("chrome://") ||
+            details.url.startsWith("chrome-extension://") ||
             details.url.startsWith("moz-extension://") ||
             details.url.startsWith("about:") ||
             details.url.startsWith("data:")
@@ -181,7 +181,7 @@ function setupWebNavigationListener() {
             "google.com",
             "intentionality.app",
             "intentionality.com",
-            "browser.google.com",
+            "chrome.google.com",
             "webstore.google.com",
             "accounts.google.com",
             "mail.google.com",
@@ -326,7 +326,7 @@ function setupWebNavigationListener() {
             "www.google.com",
             "www.intentionality.app",
             "www.intentionality.com",
-            "www.browser.google.com",
+            "www.chrome.google.com",
             "www.webstore.google.com",
             "www.accounts.google.com",
             "www.mail.google.com",
@@ -357,16 +357,16 @@ function setupWebNavigationListener() {
 
         if (isBlocked) {
             // Block the navigation and show the why prompt
-            browser.tabs.update(details.tabId, {
+            chrome.tabs.update(details.tabId, {
                 url:
-                    browser.runtime.getURL("why_prompt.html") +
+                    chrome.runtime.getURL("why_prompt.html") +
                     `?url=${encodeURIComponent(details.url)}&tabId=${
                         details.tabId
                     }`,
             });
 
             // Store the blocked URL for the why prompt
-            browser.storage.local.set({
+            chrome.storage.local.set({
                 blockedUrl: details.url,
                 blockedHostname: hostname,
                 blockedTabId: details.tabId,
@@ -388,8 +388,8 @@ function logBlockingEvent(hostname, url) {
         type: "blocked_site",
     };
 
-    // Store the blocking event in browser storage for activity tracking
-    browser.storage.sync.get(["activityLog"], function (result) {
+    // Store the blocking event in Chrome storage for activity tracking
+    chrome.storage.sync.get(["activityLog"], function (result) {
         const activityLog = result.activityLog || [];
         activityLog.push(blockingEvent);
 
@@ -398,7 +398,7 @@ function logBlockingEvent(hostname, url) {
             activityLog.splice(0, activityLog.length - 1000);
         }
 
-        browser.storage.sync.set({ activityLog: activityLog }, function () {
+        chrome.storage.sync.set({ activityLog: activityLog }, function () {
             console.log(`Blocking event logged for ${hostname}`);
         });
     });
@@ -466,7 +466,7 @@ function createDailySummary(activityLog) {
 
 // Function to send daily summary notification
 function sendDailySummaryNotification() {
-    browser.storage.sync.get(["activityLog"], function (result) {
+    chrome.storage.sync.get(["activityLog"], function (result) {
         const activityLog = result.activityLog || [];
         const summary = createDailySummary(activityLog);
 
@@ -476,7 +476,7 @@ function sendDailySummaryNotification() {
 
         const minutesDistracted = Math.round(summary.totalTimeDistracted / 60);
 
-        browser.notifications.create({
+        chrome.notifications.create({
             type: "basic",
             iconUrl: "icons/icon128.png",
             title: "Daily Intentionality Summary",
@@ -508,15 +508,15 @@ function checkDailySummary() {
 // Set up periodic check for daily summary
 setInterval(checkDailySummary, 60000); // Check every minute
 
-// Function to get blocked sites from browser storage (simplified for service worker)
+// Function to get blocked sites from Chrome storage (simplified for service worker)
 async function getBlockedSitesFromStorage() {
     return new Promise((resolve) => {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             console.log(
                 `Retrieved ${
                     blockedSites.length
-                } blocked sites from browser storage: ${blockedSites.join(
+                } blocked sites from Chrome storage: ${blockedSites.join(
                     ", ",
                 )}`,
             );
@@ -525,7 +525,7 @@ async function getBlockedSitesFromStorage() {
     });
 }
 
-// Function to check if a site is blocked (browser storage only for service worker)
+// Function to check if a site is blocked (Chrome storage only for service worker)
 async function checkIfSiteBlocked(hostname) {
     try {
         console.log(`Checking if ${hostname} is blocked...`);
@@ -545,7 +545,7 @@ async function checkIfSiteBlocked(hostname) {
 }
 
 // Listen for messages from other parts of the extension (e.g., popup.js, why_prompt.js)
-browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     if (request.action === "allowUrl") {
         temporarilyAllowedUrls.push(request.url);
         sendResponse({ status: "success" });
@@ -558,18 +558,18 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
             });
 
             // Directly update the original tab to the requested URL
-            browser.tabs.update(
+            chrome.tabs.update(
                 request.tabId,
                 { url: request.url },
                 function () {
-                    if (browser.runtime.lastError) {
+                    if (chrome.runtime.lastError) {
                         console.error(
                             "Error updating tab: ",
-                            browser.runtime.lastError.message,
+                            chrome.runtime.lastError.message,
                         );
                         sendResponse({
                             status: "error",
-                            message: browser.runtime.lastError.message,
+                            message: chrome.runtime.lastError.message,
                         });
                     } else {
                         // Wait for the navigation to start before sending success
@@ -585,14 +585,14 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         }
     } else if (request.action === "getBlockedSitesFromFirestore") {
         // This will be handled by the popup if it's open
-        // For now, return null to indicate fallback to browser storage
+        // For now, return null to indicate fallback to Chrome storage
         sendResponse({ success: false, blockedSites: null });
     } else if (request.type === "LOGIN_SUCCESS") {
         // Handle login success from the login page
         console.log("Login success received in background script");
 
         // Store the authentication data
-        browser.storage.sync.set(
+        chrome.storage.sync.set(
             {
                 authToken: request.token,
                 userInfo: request.userInfo,
@@ -601,7 +601,7 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
                 console.log("Authentication data stored");
 
                 // Forward the message to any open popup
-                browser.runtime.sendMessage(request);
+                chrome.runtime.sendMessage(request);
 
                 sendResponse({ status: "success" });
             },
@@ -612,7 +612,7 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
 });
 
 // Listen for messages from external websites (like the login page)
-browser.runtime.onMessageExternal.addListener(
+chrome.runtime.onMessageExternal.addListener(
     (message, sender, sendResponse) => {
         console.log("External message received:", message, "from:", sender);
 
@@ -625,8 +625,8 @@ browser.runtime.onMessageExternal.addListener(
                 token ? "present" : "missing",
             );
 
-            // Store token and user info using browser.storage
-            browser.storage.sync.set(
+            // Store token and user info using chrome.storage
+            chrome.storage.sync.set(
                 {
                     authToken: token,
                     userInfo: userInfo,
@@ -637,7 +637,7 @@ browser.runtime.onMessageExternal.addListener(
                     );
 
                     // Forward the message to any open popup
-                    browser.runtime.sendMessage({
+                    chrome.runtime.sendMessage({
                         type: "LOGIN_SUCCESS",
                         token: token,
                         userInfo: userInfo,
@@ -651,29 +651,29 @@ browser.runtime.onMessageExternal.addListener(
 );
 
 // Listen for extension installation
-browser.runtime.onInstalled.addListener(function (details) {
+chrome.runtime.onInstalled.addListener(function (details) {
     if (details.reason === "install") {
         console.log("Extension installed - redirecting to login");
 
         // Open the login page in a new tab
-        browser.tabs.create({
+        chrome.tabs.create({
             url: "https://intentionality.app/login.html",
         });
     }
 });
 
 // Set uninstall URL to redirect to feedback form
-browser.runtime.setUninstallURL("https://forms.gle/xHuRVeYARy1LVXA47");
+chrome.runtime.setUninstallURL("https://forms.gle/xHuRVeYARy1LVXA47");
 
 // Inject content script for login page communication
-browser.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
+chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
     if (
         changeInfo.status === "complete" &&
         tab.url &&
         (tab.url.includes("intentionality.app/login") ||
             tab.url.includes("intentionality.app/login.html"))
     ) {
-        browser.scripting.executeScript({
+        chrome.scripting.executeScript({
             target: { tabId: tabId },
             function: injectLoginCommunication,
         });
@@ -685,7 +685,7 @@ function injectLoginCommunication() {
     // Listen for custom events from the login page
     window.addEventListener("intentionalityUserLoggedIn", function (event) {
         // Forward the login event to the extension
-        browser.runtime.sendMessage({
+        chrome.runtime.sendMessage({
             type: "LOGIN_SUCCESS",
             userInfo: event.detail,
             timestamp: Date.now(),
@@ -699,7 +699,7 @@ function injectLoginCommunication() {
         if (key === "intentionality_user_login") {
             try {
                 const loginData = JSON.parse(value);
-                browser.runtime.sendMessage({
+                chrome.runtime.sendMessage({
                     type: "LOGIN_SUCCESS",
                     userInfo: loginData.userInfo,
                     timestamp: loginData.timestamp,

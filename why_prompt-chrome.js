@@ -51,15 +51,15 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Try to save to Firestore first, fallback to browser storage
+        // Try to save to Firestore first, fallback to Chrome storage
         try {
             await saveActivityToFirestore(originalUrl, reason, dumbReason);
         } catch (error) {
             console.error(
-                "Error saving to Firestore, falling back to browser storage:",
+                "Error saving to Firestore, falling back to Chrome storage:",
                 error,
             );
-            await saveActivityToBrowser(originalUrl, reason, dumbReason);
+            await saveActivityToChrome(originalUrl, reason, dumbReason);
         }
 
         // Send message to background.js to proceed with the original tabId
@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Try to use the background script if tabId is available
             if (originalTabId) {
                 proceedButton.disabled = true;
-                browser.runtime.sendMessage(
+                chrome.runtime.sendMessage(
                     {
                         action: "proceedToUrl",
                         url: originalUrl,
@@ -144,10 +144,10 @@ async function saveActivityToFirestore(url, reason, dumbReason) {
     console.log("Activity saved to Firestore successfully");
 }
 
-// Function to save activity to browser storage (fallback)
-async function saveActivityToBrowser(url, reason, dumbReason) {
+// Function to save activity to Chrome storage (fallback)
+async function saveActivityToChrome(url, reason, dumbReason) {
     return new Promise((resolve, reject) => {
-        browser.storage.sync.get(["activityLog"], function (result) {
+        chrome.storage.sync.get(["activityLog"], function (result) {
             const activityLog = result.activityLog || [];
             const timestamp = new Date().toISOString();
 
@@ -167,12 +167,12 @@ async function saveActivityToBrowser(url, reason, dumbReason) {
                 sessionDuration: sessionDuration,
             });
 
-            browser.storage.sync.set({ activityLog }, function () {
-                if (browser.runtime.lastError) {
-                    reject(browser.runtime.lastError);
+            chrome.storage.sync.set({ activityLog }, function () {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
                 } else {
                     console.log(
-                        "Activity saved to browser storage successfully",
+                        "Activity saved to Chrome storage successfully",
                     );
                     resolve();
                 }
@@ -181,10 +181,10 @@ async function saveActivityToBrowser(url, reason, dumbReason) {
     });
 }
 
-// Get current user ID from browser storage
+// Get current user ID from Chrome storage
 async function getCurrentUserId() {
     return new Promise((resolve) => {
-        browser.storage.sync.get(["userInfo"], function (result) {
+        chrome.storage.sync.get(["userInfo"], function (result) {
             const userInfo = result.userInfo;
             resolve(userInfo ? userInfo.uid : null);
         });

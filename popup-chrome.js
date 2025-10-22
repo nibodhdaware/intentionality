@@ -1,9 +1,9 @@
 // Firestore-based data storage for Intentionality extension
 
-// Get current user ID from browser storage
+// Get current user ID from Chrome storage
 async function getCurrentUserId() {
     return new Promise((resolve) => {
-        browser.storage.sync.get(["userInfo", "authToken"], function (result) {
+        chrome.storage.sync.get(["userInfo", "authToken"], function (result) {
             const userInfo = result.userInfo;
             const authToken = result.authToken;
 
@@ -22,7 +22,7 @@ async function getCurrentUserId() {
 // Check if a site is blocked (helper function)
 async function checkIfSiteBlocked(hostname) {
     return new Promise((resolve) => {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             const isBlocked = blockedSites.some(
                 (site) => hostname === site || hostname === `www.${site}`,
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Function to check authentication state
     function checkAuthState() {
-        browser.storage.sync.get(["authToken", "userInfo"], function (result) {
+        chrome.storage.sync.get(["authToken", "userInfo"], function (result) {
             const authToken = result.authToken;
             const userInfo = result.userInfo;
 
@@ -81,14 +81,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Listen for messages from the login page
-    browser.runtime.onMessage.addListener(function (
+    chrome.runtime.onMessage.addListener(function (
         request,
         sender,
         sendResponse,
     ) {
         if (request.type === "LOGIN_SUCCESS") {
             // Store the auth token and user info
-            browser.storage.sync.set(
+            chrome.storage.sync.set(
                 {
                     authToken: request.token,
                     userInfo: request.userInfo,
@@ -161,8 +161,8 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             // Check if Firebase is available
             if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                loadBlockedSitesFromBrowser();
+                console.log("Firebase not available, using Chrome storage");
+                loadBlockedSitesFromChrome();
                 return;
             }
 
@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 console.log(
                     "No user ID available, using local storage fallback",
                 );
-                loadBlockedSitesFromBrowser();
+                loadBlockedSitesFromChrome();
                 return;
             }
 
@@ -193,28 +193,28 @@ document.addEventListener("DOMContentLoaded", function () {
                 const blockedSites = data.sites || [];
                 displayBlockedSites(blockedSites);
             } else {
-                // If no Firestore document exists, try to migrate from browser storage
+                // If no Firestore document exists, try to migrate from Chrome storage
                 await migrateBlockedSitesToFirestore();
             }
         } catch (error) {
             console.error("Error loading blocked sites from Firestore:", error);
             console.log(
-                "Falling back to browser storage due to Firestore error",
+                "Falling back to Chrome storage due to Firestore error",
             );
-            // Fallback to browser storage
-            loadBlockedSitesFromBrowser();
+            // Fallback to Chrome storage
+            loadBlockedSitesFromChrome();
         }
     }
 
-    // Fallback function to load blocked sites from browser storage
-    function loadBlockedSitesFromBrowser() {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+    // Fallback function to load blocked sites from Chrome storage
+    function loadBlockedSitesFromChrome() {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             displayBlockedSites(blockedSites);
         });
     }
 
-    // Sync blocked sites from Firestore to browser storage on popup load
+    // Sync blocked sites from Firestore to Chrome storage on popup load
     async function syncBlockedSitesFromFirestore() {
         try {
             // Check if Firebase is available
@@ -238,8 +238,8 @@ document.addEventListener("DOMContentLoaded", function () {
             if (doc.exists) {
                 const data = doc.data();
                 const blockedSites = data.sites || [];
-                // Sync to browser storage for background script
-                syncBlockedSitesToBrowser(blockedSites);
+                // Sync to Chrome storage for background script
+                syncBlockedSitesToChrome(blockedSites);
             }
         } catch (error) {
             console.error("Error syncing blocked sites from Firestore:", error);
@@ -267,21 +267,21 @@ document.addEventListener("DOMContentLoaded", function () {
             blockedSitesList.appendChild(siteItem);
         });
 
-        // Sync to browser storage for background script access
-        syncBlockedSitesToBrowser(blockedSites);
+        // Sync to Chrome storage for background script access
+        syncBlockedSitesToChrome(blockedSites);
     }
 
-    // Sync blocked sites to browser storage for background script access
-    function syncBlockedSitesToBrowser(blockedSites) {
-        browser.storage.sync.set({ blockedSites: blockedSites }, function () {
-            if (browser.runtime.lastError) {
+    // Sync blocked sites to Chrome storage for background script access
+    function syncBlockedSitesToChrome(blockedSites) {
+        chrome.storage.sync.set({ blockedSites: blockedSites }, function () {
+            if (chrome.runtime.lastError) {
                 console.error(
-                    "Error syncing blocked sites to browser storage:",
-                    browser.runtime.lastError,
+                    "Error syncing blocked sites to Chrome storage:",
+                    chrome.runtime.lastError,
                 );
             } else {
                 console.log(
-                    `Synced ${blockedSites.length} blocked sites to browser storage`,
+                    `Synced ${blockedSites.length} blocked sites to Chrome storage`,
                 );
             }
         });
@@ -295,15 +295,15 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             // Check if Firebase is available
             if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                addSiteToBrowser(site);
+                console.log("Firebase not available, using Chrome storage");
+                addSiteToChrome(site);
                 return;
             }
 
             const userId = await getCurrentUserId();
             if (!userId) {
-                // Fallback to browser storage
-                addSiteToBrowser(site);
+                // Fallback to Chrome storage
+                addSiteToChrome(site);
                 return;
             }
 
@@ -326,23 +326,23 @@ document.addEventListener("DOMContentLoaded", function () {
                 await docRef.set({ sites: blockedSites });
                 siteInput.value = "";
                 loadBlockedSites();
-                // Sync to browser storage for background script
-                syncBlockedSitesToBrowser(blockedSites);
+                // Sync to Chrome storage for background script
+                syncBlockedSitesToChrome(blockedSites);
             }
         } catch (error) {
             console.error("Error adding site to Firestore:", error);
-            // Fallback to browser storage
-            addSiteToBrowser(site);
+            // Fallback to Chrome storage
+            addSiteToChrome(site);
         }
     }
 
-    // Fallback function to add site to browser storage
-    function addSiteToBrowser(site) {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+    // Fallback function to add site to Chrome storage
+    function addSiteToChrome(site) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             if (!blockedSites.includes(site)) {
                 blockedSites.push(site);
-                browser.storage.sync.set({ blockedSites }, function () {
+                chrome.storage.sync.set({ blockedSites }, function () {
                     siteInput.value = "";
                     loadBlockedSites();
                 });
@@ -355,15 +355,15 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             // Check if Firebase is available
             if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                removeSiteFromBrowser(site);
+                console.log("Firebase not available, using Chrome storage");
+                removeSiteFromChrome(site);
                 return;
             }
 
             const userId = await getCurrentUserId();
             if (!userId) {
-                // Fallback to browser storage
-                removeSiteFromBrowser(site);
+                // Fallback to Chrome storage
+                removeSiteFromChrome(site);
                 return;
             }
 
@@ -381,22 +381,22 @@ document.addEventListener("DOMContentLoaded", function () {
                 blockedSites = blockedSites.filter((s) => s !== site);
                 await docRef.set({ sites: blockedSites });
                 loadBlockedSites();
-                // Sync to browser storage for background script
-                syncBlockedSitesToBrowser(blockedSites);
+                // Sync to Chrome storage for background script
+                syncBlockedSitesToChrome(blockedSites);
             }
         } catch (error) {
             console.error("Error removing site from Firestore:", error);
-            // Fallback to browser storage
-            removeSiteFromBrowser(site);
+            // Fallback to Chrome storage
+            removeSiteFromChrome(site);
         }
     }
 
-    // Fallback function to remove site from browser storage
-    function removeSiteFromBrowser(site) {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+    // Fallback function to remove site from Chrome storage
+    function removeSiteFromChrome(site) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             const updatedSites = blockedSites.filter((s) => s !== site);
-            browser.storage.sync.set(
+            chrome.storage.sync.set(
                 { blockedSites: updatedSites },
                 function () {
                     loadBlockedSites();
@@ -405,7 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Migrate blocked sites from browser storage to Firestore
+    // Migrate blocked sites from Chrome storage to Firestore
     async function migrateBlockedSitesToFirestore() {
         try {
             // Check if Firebase is available
@@ -417,7 +417,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const userId = await getCurrentUserId();
             if (!userId) return;
 
-            browser.storage.sync.get(["blockedSites"], async function (result) {
+            chrome.storage.sync.get(["blockedSites"], async function (result) {
                 const blockedSites = result.blockedSites || [];
                 if (blockedSites.length > 0) {
                     const docRef = firebase
@@ -438,14 +438,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Check if it's a new day and reset state if needed
     function checkAndResetDailyState() {
-        browser.storage.sync.get(["lastResetDate"], function (result) {
+        chrome.storage.sync.get(["lastResetDate"], function (result) {
             const lastResetDate = result.lastResetDate;
             const today = new Date().toDateString();
 
             if (lastResetDate !== today) {
                 // Just update the last reset date, don't clear activity log
                 // This preserves historical data for date selection
-                browser.storage.sync.set(
+                chrome.storage.sync.set(
                     {
                         lastResetDate: today,
                     },
@@ -474,7 +474,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Initial load for blocked sites
     loadBlockedSites();
 
-    // Sync blocked sites from Firestore to browser storage for background script
+    // Sync blocked sites from Firestore to Chrome storage for background script
     syncBlockedSitesFromFirestore();
 
     // Check migration status and show migration button if needed
@@ -562,15 +562,15 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             // Check if Firebase is available
             if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                loadActivityStatsFromBrowser(datePicker.value);
+                console.log("Firebase not available, using Chrome storage");
+                loadActivityStatsFromChrome(datePicker.value);
                 return;
             }
 
             const userId = await getCurrentUserId();
             if (!userId) {
-                console.log("No user ID available, using browser storage");
-                loadActivityStatsFromBrowser(datePicker.value);
+                console.log("No user ID available, using Chrome storage");
+                loadActivityStatsFromChrome(datePicker.value);
                 return;
             }
 
@@ -609,14 +609,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 "Error loading activity stats from Firestore:",
                 error,
             );
-            // Fallback to browser storage
-            loadActivityStatsFromBrowser(datePicker.value);
+            // Fallback to Chrome storage
+            loadActivityStatsFromChrome(datePicker.value);
         }
     }
 
-    // Fallback function to load activity stats from browser storage
-    function loadActivityStatsFromBrowser(selectedDate) {
-        browser.storage.sync.get(["activityLog"], function (result) {
+    // Fallback function to load activity stats from Chrome storage
+    function loadActivityStatsFromChrome(selectedDate) {
+        chrome.storage.sync.get(["activityLog"], function (result) {
             const activityLog = result.activityLog || [];
             renderActivityStats(activityLog, selectedDate);
         });
