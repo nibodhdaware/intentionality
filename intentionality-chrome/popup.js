@@ -697,14 +697,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span>Productive:</span>
                     <span style="font-weight: bold;">${productivePercentage.toFixed(
-                        1,
-                    )}%</span>
+            1,
+        )}%</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span>Distracted:</span>
                     <span style="font-weight: bold;">${distractedPercentage.toFixed(
-                        1,
-                    )}%</span>
+            1,
+        )}%</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span>Time Distracted:</span>
@@ -712,9 +712,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span>Overall Score:</span>
-                    <span style="font-weight: bold; color: ${
-                        averageScore >= 0 ? "#2d5a2d" : "#856404"
-                    };">${averageScore.toFixed(2)}</span>
+                    <span style="font-weight: bold; color: ${averageScore >= 0 ? "#2d5a2d" : "#856404"
+            };">${averageScore.toFixed(2)}</span>
                 </div>
             </div>
         `;
