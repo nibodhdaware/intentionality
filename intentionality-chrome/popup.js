@@ -1,18 +1,34 @@
 // Firestore-based data storage for Intentionality extension
+import "./lib/browser-polyfill.js";
 
-// Get current user ID from browser storage
+// Get current user ID from browser or chrome storage
 async function getCurrentUserId() {
+    const storage =
+        typeof browser !== "undefined" && chrome.storage
+            ? chrome.storage
+            : typeof chrome !== "undefined"
+            ? chrome.storage
+            : null;
+
+    if (!storage) {
+        console.error("❌ No browser or chrome storage API found.");
+        return null;
+    }
+
     return new Promise((resolve) => {
-        browser.storage.sync.get(["userInfo", "authToken"], function (result) {
+        storage.sync.get(["userInfo", "authToken"], (result) => {
             const userInfo = result.userInfo;
             const authToken = result.authToken;
 
+            // More detailed debugging
+            console.log("Debug - Storage result:", result);
             console.log("Debug - userInfo:", userInfo);
-            console.log("Debug - authToken exists:", !!authToken);
-            console.log(
-                "Debug - userInfo.uid:",
-                userInfo ? userInfo.uid : null,
-            );
+            console.log("Debug - authToken:", authToken ? "exists" : "missing");
+            if (userInfo) {
+                console.log("Debug - userInfo fields:", Object.keys(userInfo));
+            } else {
+                console.log("Debug - userInfo is undefined or null");
+            }
 
             resolve(userInfo ? userInfo.uid : null);
         });
@@ -22,7 +38,7 @@ async function getCurrentUserId() {
 // Check if a site is blocked (helper function)
 async function checkIfSiteBlocked(hostname) {
     return new Promise((resolve) => {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             const isBlocked = blockedSites.some(
                 (site) => hostname === site || hostname === `www.${site}`,
@@ -66,7 +82,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Function to check authentication state
     function checkAuthState() {
-        browser.storage.sync.get(["authToken", "userInfo"], function (result) {
+        chrome.storage.sync.get(["authToken", "userInfo"], function (result) {
             const authToken = result.authToken;
             const userInfo = result.userInfo;
 
@@ -81,14 +97,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // Listen for messages from the login page
-    browser.runtime.onMessage.addListener(function (
+    chrome.runtime.onMessage.addListener(function (
         request,
         sender,
         sendResponse,
     ) {
         if (request.type === "LOGIN_SUCCESS") {
             // Store the auth token and user info
-            browser.storage.sync.set(
+            chrome.storage.sync.set(
                 {
                     authToken: request.token,
                     userInfo: request.userInfo,
@@ -208,7 +224,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Fallback function to load blocked sites from browser storage
     function loadBlockedSitesFromBrowser() {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             displayBlockedSites(blockedSites);
         });
@@ -273,11 +289,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Sync blocked sites to browser storage for background script access
     function syncBlockedSitesToBrowser(blockedSites) {
-        browser.storage.sync.set({ blockedSites: blockedSites }, function () {
-            if (browser.runtime.lastError) {
+        chrome.storage.sync.set({ blockedSites: blockedSites }, function () {
+            if (chrome.runtime.lastError) {
                 console.error(
                     "Error syncing blocked sites to browser storage:",
-                    browser.runtime.lastError,
+                    chrome.runtime.lastError,
                 );
             } else {
                 console.log(
@@ -338,11 +354,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Fallback function to add site to browser storage
     function addSiteToBrowser(site) {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             if (!blockedSites.includes(site)) {
                 blockedSites.push(site);
-                browser.storage.sync.set({ blockedSites }, function () {
+                chrome.storage.sync.set({ blockedSites }, function () {
                     siteInput.value = "";
                     loadBlockedSites();
                 });
@@ -393,10 +409,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Fallback function to remove site from browser storage
     function removeSiteFromBrowser(site) {
-        browser.storage.sync.get(["blockedSites"], function (result) {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             const updatedSites = blockedSites.filter((s) => s !== site);
-            browser.storage.sync.set(
+            chrome.storage.sync.set(
                 { blockedSites: updatedSites },
                 function () {
                     loadBlockedSites();
@@ -417,7 +433,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const userId = await getCurrentUserId();
             if (!userId) return;
 
-            browser.storage.sync.get(["blockedSites"], async function (result) {
+            chrome.storage.sync.get(["blockedSites"], async function (result) {
                 const blockedSites = result.blockedSites || [];
                 if (blockedSites.length > 0) {
                     const docRef = firebase
@@ -438,14 +454,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Check if it's a new day and reset state if needed
     function checkAndResetDailyState() {
-        browser.storage.sync.get(["lastResetDate"], function (result) {
+        chrome.storage.sync.get(["lastResetDate"], function (result) {
             const lastResetDate = result.lastResetDate;
             const today = new Date().toDateString();
 
             if (lastResetDate !== today) {
                 // Just update the last reset date, don't clear activity log
                 // This preserves historical data for date selection
-                browser.storage.sync.set(
+                chrome.storage.sync.set(
                     {
                         lastResetDate: today,
                     },
@@ -616,7 +632,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Fallback function to load activity stats from browser storage
     function loadActivityStatsFromBrowser(selectedDate) {
-        browser.storage.sync.get(["activityLog"], function (result) {
+        chrome.storage.sync.get(["activityLog"], function (result) {
             const activityLog = result.activityLog || [];
             renderActivityStats(activityLog, selectedDate);
         });
@@ -697,14 +713,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span>Productive:</span>
                     <span style="font-weight: bold;">${productivePercentage.toFixed(
-            1,
-        )}%</span>
+                        1,
+                    )}%</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span>Distracted:</span>
                     <span style="font-weight: bold;">${distractedPercentage.toFixed(
-            1,
-        )}%</span>
+                        1,
+                    )}%</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                     <span>Time Distracted:</span>
@@ -712,8 +728,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 </div>
                 <div style="display: flex; justify-content: space-between;">
                     <span>Overall Score:</span>
-                    <span style="font-weight: bold; color: ${averageScore >= 0 ? "#2d5a2d" : "#856404"
-            };">${averageScore.toFixed(2)}</span>
+                    <span style="font-weight: bold; color: ${
+                        averageScore >= 0 ? "#2d5a2d" : "#856404"
+                    };">${averageScore.toFixed(2)}</span>
                 </div>
             </div>
         `;

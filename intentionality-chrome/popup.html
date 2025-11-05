@@ -412,7 +412,7 @@
                             Sign in for analytics and sync purposes
                         </div>
                         <a
-                            href="https://intentionality.app/login.html"
+                            href="http://127.0.0.1:5500/intentionality-lander/login.html"
                             target="_blank"
                             class="signin-button"
                         >
@@ -461,6 +461,7 @@
         <script src="lib/firebase-config.js"></script>
         <!-- Migration utility -->
         <script src="lib/migration-utility.js"></script>
-        <script src="popup.js"></script>
+        <script src="lib/browser-polyfill.js"></script>
+        <script src="popup.js" type="module"></script>
     </body>
 </html>

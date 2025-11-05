@@ -67,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // Try to use the background script if tabId is available
             if (originalTabId) {
                 proceedButton.disabled = true;
-                browser.runtime.sendMessage(
+                chrome.runtime.sendMessage(
                     {
                         action: "proceedToUrl",
                         url: originalUrl,
@@ -147,7 +147,7 @@ async function saveActivityToFirestore(url, reason, dumbReason) {
 // Function to save activity to browser storage (fallback)
 async function saveActivityToBrowser(url, reason, dumbReason) {
     return new Promise((resolve, reject) => {
-        browser.storage.sync.get(["activityLog"], function (result) {
+        chrome.storage.sync.get(["activityLog"], function (result) {
             const activityLog = result.activityLog || [];
             const timestamp = new Date().toISOString();
 
@@ -167,9 +167,9 @@ async function saveActivityToBrowser(url, reason, dumbReason) {
                 sessionDuration: sessionDuration,
             });
 
-            browser.storage.sync.set({ activityLog }, function () {
-                if (browser.runtime.lastError) {
-                    reject(browser.runtime.lastError);
+            chrome.storage.sync.set({ activityLog }, function () {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
                 } else {
                     console.log(
                         "Activity saved to browser storage successfully",
@@ -184,7 +184,7 @@ async function saveActivityToBrowser(url, reason, dumbReason) {
 // Get current user ID from browser storage
 async function getCurrentUserId() {
     return new Promise((resolve) => {
-        browser.storage.sync.get(["userInfo"], function (result) {
+        chrome.storage.sync.get(["userInfo"], function (result) {
             const userInfo = result.userInfo;
             resolve(userInfo ? userInfo.uid : null);
         });

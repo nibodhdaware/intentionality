@@ -51,7 +51,7 @@ class MigrationUtility {
     // Migrate blocked sites from browser storage to Firestore
     async migrateBlockedSites(userId) {
         return new Promise((resolve, reject) => {
-            browser.storage.sync.get(["blockedSites"], async (result) => {
+            chrome.storage.sync.get(["blockedSites"], async (result) => {
                 try {
                     const blockedSites = result.blockedSites || [];
                     if (blockedSites.length > 0 && this.db) {
@@ -82,7 +82,7 @@ class MigrationUtility {
     // Migrate activity log from browser storage to Firestore
     async migrateActivityLog(userId) {
         return new Promise((resolve, reject) => {
-            browser.storage.sync.get(["activityLog"], async (result) => {
+            chrome.storage.sync.get(["activityLog"], async (result) => {
                 try {
                     const activityLog = result.activityLog || [];
                     if (activityLog.length > 0 && this.db) {
@@ -122,7 +122,7 @@ class MigrationUtility {
     // Migrate user settings from browser storage to Firestore
     async migrateUserSettings(userId) {
         return new Promise((resolve, reject) => {
-            browser.storage.sync.get(
+            chrome.storage.sync.get(
                 ["lastResetDate", "userInfo"],
                 async (result) => {
                     try {
@@ -206,7 +206,7 @@ class MigrationUtility {
 
             // Check if browser storage has data
             return new Promise((resolve) => {
-                browser.storage.sync.get(
+                chrome.storage.sync.get(
                     ["blockedSites", "activityLog"],
                     (result) => {
                         const hasBrowserData =
@@ -236,7 +236,7 @@ class MigrationUtility {
     // Get current user ID from browser storage
     async getCurrentUserId() {
         return new Promise((resolve) => {
-            browser.storage.sync.get(["userInfo"], (result) => {
+            chrome.storage.sync.get(["userInfo"], (result) => {
                 const userInfo = result.userInfo;
                 resolve(userInfo ? userInfo.uid : null);
             });
@@ -246,9 +246,9 @@ class MigrationUtility {
     // Clear browser storage after successful migration (optional)
     async clearBrowserStorage() {
         return new Promise((resolve, reject) => {
-            browser.storage.sync.clear((result) => {
-                if (browser.runtime.lastError) {
-                    reject(browser.runtime.lastError);
+            chrome.storage.sync.clear((result) => {
+                if (chrome.runtime.lastError) {
+                    reject(chrome.runtime.lastError);
                 } else {
                     console.log("browser storage cleared after migration");
                     resolve();

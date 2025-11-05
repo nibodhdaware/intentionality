@@ -1,3 +1,47 @@
+import "./lib/browser-polyfill.js";
+console.log("Service worker loaded successfully!");
+
+// Listen for external messages (like login)
+chrome.runtime.onMessageExternal.addListener(
+    (message, sender, sendResponse) => {
+        console.log("Received external message:", message);
+        console.log("From:", sender.url);
+
+        if (
+            message.type === "LOGIN_SUCCESS" &&
+            message.userInfo &&
+            message.token
+        ) {
+            console.log("Processing login success");
+
+            // Store the auth data
+            chrome.storage.sync.set(
+                {
+                    authToken: message.token,
+                    userInfo: message.userInfo,
+                },
+                () => {
+                    if (chrome.runtime.lastError) {
+                        console.error(
+                            "Error storing auth data:",
+                            chrome.runtime.lastError,
+                        );
+                        sendResponse({
+                            status: "error",
+                            error: chrome.runtime.lastError.message,
+                        });
+                    } else {
+                        console.log("Auth data stored successfully");
+                        sendResponse({ status: "success" });
+                    }
+                },
+            );
+
+            return true; // Keep message channel open for async response
+        }
+    },
+);
+
 let temporarilyAllowedUrls = []; // Stores objects like { tabId: 123, url: "https://example.com" }
 
 // Setup webNavigation listener for blocking
@@ -19,10 +63,10 @@ function setupWebNavigationListener() {
             return;
         }
 
-        // Skip chrome://, chrome-extension://, and other safe protocols
+        // Skip browser://, browser-extension://, and other safe protocols
         if (
-            details.url.startsWith("chrome://") ||
-            details.url.startsWith("chrome-extension://") ||
+            details.url.startsWith("browser://") ||
+            details.url.startsWith("browser-extension://") ||
             details.url.startsWith("moz-extension://") ||
             details.url.startsWith("about:") ||
             details.url.startsWith("data:")
@@ -388,7 +432,7 @@ function logBlockingEvent(hostname, url) {
         type: "blocked_site",
     };
 
-    // Store the blocking event in Chrome storage for activity tracking
+    // Store the blocking event in browser storage for activity tracking
     chrome.storage.sync.get(["activityLog"], function (result) {
         const activityLog = result.activityLog || [];
         activityLog.push(blockingEvent);
@@ -508,7 +552,7 @@ function checkDailySummary() {
 // Set up periodic check for daily summary
 setInterval(checkDailySummary, 60000); // Check every minute
 
-// Function to get blocked sites from Chrome storage (simplified for service worker)
+// Function to get blocked sites from browser storage (simplified for service worker)
 async function getBlockedSitesFromStorage() {
     return new Promise((resolve) => {
         chrome.storage.sync.get(["blockedSites"], function (result) {
@@ -516,7 +560,7 @@ async function getBlockedSitesFromStorage() {
             console.log(
                 `Retrieved ${
                     blockedSites.length
-                } blocked sites from Chrome storage: ${blockedSites.join(
+                } blocked sites from browser storage: ${blockedSites.join(
                     ", ",
                 )}`,
             );
@@ -525,7 +569,7 @@ async function getBlockedSitesFromStorage() {
     });
 }
 
-// Function to check if a site is blocked (Chrome storage only for service worker)
+// Function to check if a site is blocked (browser storage only for service worker)
 async function checkIfSiteBlocked(hostname) {
     try {
         console.log(`Checking if ${hostname} is blocked...`);
@@ -585,7 +629,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         }
     } else if (request.action === "getBlockedSitesFromFirestore") {
         // This will be handled by the popup if it's open
-        // For now, return null to indicate fallback to Chrome storage
+        // For now, return null to indicate fallback to browser storage
         sendResponse({ success: false, blockedSites: null });
     } else if (request.type === "LOGIN_SUCCESS") {
         // Handle login success from the login page
@@ -713,3 +757,81 @@ function injectLoginCommunication() {
 
 // Initialize: Enable automatic blocking
 setupWebNavigationListener();
+
+// Listen for messages from external websites (like the login page)
+chrome.runtime.onMessageExternal.addListener(
+    (message, sender, sendResponse) => {
+        console.log("🔔 External message received");
+        console.log("Message:", JSON.stringify(message, null, 2));
+        console.log("Sender:", JSON.stringify(sender, null, 2));
+
+        // Validate sender origin
+        const allowedDomains = [
+            "https://intentionality.app",
+            "https://intentionality-1ce65.firebaseapp.com",
+            "https://intentionality-1ce65.web.app",
+        ];
+
+        const isAllowedDomain = allowedDomains.some(
+            (domain) => sender.url && sender.url.startsWith(domain),
+        );
+
+        if (!isAllowedDomain) {
+            console.error(
+                "🚫 Message received from unauthorized domain:",
+                sender.url,
+            );
+            sendResponse({ status: "error", message: "Unauthorized domain" });
+            return;
+        }
+
+        console.log("✅ Sender domain authorized");
+
+        if (message.type === "LOGIN_SUCCESS") {
+            console.log("🔑 Processing LOGIN_SUCCESS message");
+            const token = message.token;
+            const userInfo = message.userInfo;
+
+            console.log("Token present:", !!token);
+            console.log("UserInfo present:", !!userInfo);
+            if (userInfo) {
+                console.log("UserInfo fields:", Object.keys(userInfo));
+                console.log(
+                    "UserInfo contents:",
+                    JSON.stringify(userInfo, null, 2),
+                );
+            }
+
+            if (!userInfo || !userInfo.uid) {
+                console.error("Invalid userInfo received");
+                return;
+            }
+
+            // Store token and user info using chrome.storage
+            chrome.storage.sync.set(
+                {
+                    authToken: token,
+                    userInfo: userInfo,
+                },
+                () => {
+                    const error = chrome.runtime.lastError;
+                    if (error) {
+                        console.error("Error storing login data:", error);
+                        sendResponse({
+                            status: "error",
+                            message: error.message,
+                        });
+                    } else {
+                        console.log(
+                            "User is logged in! Token and user info stored.",
+                        );
+                        sendResponse({ status: "success" });
+                    }
+                    sendResponse({ status: "received" });
+                },
+            );
+
+            return true; // Keep the message channel open for async response
+        }
+    },
+);
