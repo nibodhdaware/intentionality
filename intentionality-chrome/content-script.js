@@ -1,16 +1,21 @@
-console.log('Content script loaded and listening for messages');
+console.log("Content script loaded and listening for messages");
 
 // Listen for messages from the webpage
 window.addEventListener("message", function (event) {
-    console.log('Content script received message:', event.data, 'from origin:', event.origin);
-    
+    console.log(
+        "Content script received message:",
+        event.data,
+        "from origin:",
+        event.origin,
+    );
+
     // Verify origin
     const allowedOrigins = [
         "https://intentionality.app",
         "https://intentionality-1ce65.firebaseapp.com",
         "http://localhost:5500",
         "http://localhost:3000",
-        "http://127.0.0.1:5500"
+        "http://127.0.0.1:5500",
     ];
 
     if (!allowedOrigins.includes(event.origin)) {
