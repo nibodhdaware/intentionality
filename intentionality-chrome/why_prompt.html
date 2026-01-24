@@ -1,207 +1,271 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Why are you here?</title>
+        <title>Intentionality - Reflection</title>
         <meta charset="UTF-8" />
-        <!-- Firebase App (the core Firebase SDK) -->
-        <script src="lib/firebase-app-compat.js"></script>
-        <!-- Firebase Firestore -->
-        <script src="lib/firebase-firestore-compat.js"></script>
-        <!-- Firebase configuration -->
-        <script src="lib/firebase-config.js"></script>
         <style>
             :root {
-                --calm-blue: #2c3e50;
-                --zen-light: #ecf0f1;
-                --zen-dark: #34495e;
+                --primary: #2c3e50;
+                --accent: #3b82f6;
+                --bg: #f8fafc;
+                --surface: #ffffff;
+                --text: #1e293b;
+                --text-muted: #64748b;
+                --border: #e2e8f0;
+                --danger: #ef4444;
+                --success: #10b981;
             }
+
             body {
-                font-family: Arial, sans-serif;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                margin: 0;
+                padding: 0;
+                background-color: var(--bg);
+                color: var(--text);
                 display: flex;
-                flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                height: 100vh;
-                margin: 0;
-                background-color: var(--zen-light);
-                text-align: center;
-                padding: 20px;
-                color: var(--zen-dark);
+                min-height: 100vh;
             }
+
             .container {
-                background-color: white;
+                width: 90%;
+                max-width: 440px;
+                padding: 20px;
+            }
+
+            .card {
+                background-color: var(--surface);
+                border-radius: 20px;
                 padding: 40px;
-                border-radius: 10px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-                max-width: 500px;
-                width: 100%;
-                box-sizing: border-box;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+                border: 1px solid var(--border);
+                text-align: center;
             }
+
             h1 {
-                color: var(--calm-blue);
-                margin-bottom: 20px;
-                font-size: 2.25rem; /* Equivalent to text-4xl */
-                font-weight: bold;
+                font-size: 1.5rem;
+                font-weight: 800;
+                color: var(--primary);
+                margin: 0 0 12px 0;
+                letter-spacing: -0.025em;
+                line-height: 1.2;
             }
+
             p {
-                color: var(--zen-dark);
-                line-height: 1.6;
-                margin-bottom: 20px;
-                font-size: 1.125rem; /* Equivalent to text-lg */
+                font-size: 0.9375rem;
+                color: var(--text-muted);
+                margin: 0 0 32px 0;
+                line-height: 1.5;
             }
-            input[type="text"],
-            select {
-                width: 100%;
-                padding: 12px;
-                margin-bottom: 15px;
-                border: 1px solid #ccc;
-                border-radius: 5px;
-                box-sizing: border-box;
-                font-size: 1rem;
-                outline: none;
-                transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+            .input-group {
+                margin-bottom: 24px;
+                text-align: left;
             }
-            input[type="text"]:focus,
-            select:focus {
-                border-color: var(--calm-blue);
-                box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.2);
-            }
-            button {
-                background-color: var(--calm-blue);
-                color: white;
-                padding: 12px 24px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                text-decoration: none;
+
+            label {
                 display: block;
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: var(--text-muted);
+                margin-bottom: 8px;
+                padding-left: 4px;
+            }
+
+            input[type="text"] {
                 width: 100%;
-                margin-bottom: 10px;
-                font-size: 1.1rem;
-                transition: background-color 0.3s ease;
+                padding: 14px 16px;
+                background-color: var(--bg);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                font-family: inherit;
+                font-size: 1rem;
+                box-sizing: border-box;
+                color: var(--text);
+                transition: all 0.2s ease;
+                outline: none;
             }
-            button:hover {
-                background-color: var(--zen-dark);
+
+            input[type="text"]:focus {
+                border-color: var(--accent);
+                background-color: var(--surface);
+                box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
             }
+
+            #wordCount {
+                font-size: 0.75rem;
+                margin-top: 8px;
+                padding-right: 4px;
+                text-align: right;
+                font-weight: 500;
+            }
+
+            /* Star Rating */
+            .rating-section {
+                margin-bottom: 32px;
+            }
+
+            .star-rating {
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                margin-bottom: 8px;
+            }
+
+            .star {
+                font-size: 2rem;
+                color: #e2e8f0;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                user-select: none;
+            }
+
+            .star:hover {
+                transform: scale(1.15);
+                color: #fbbf24;
+            }
+
+            .star.active {
+                color: #fbbf24;
+                transform: scale(1.1);
+            }
+
+            .star.hover {
+                color: #fcd34d;
+            }
+
+            #ratingText {
+                font-size: 0.8125rem;
+                font-weight: 600;
+                color: var(--text-muted);
+                min-height: 1.2em;
+            }
+
+            /* Buttons */
+            .actions {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            button {
+                width: 100%;
+                padding: 14px;
+                border-radius: 12px;
+                font-family: inherit;
+                font-size: 0.9375rem;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                border: none;
+            }
+
+            #proceedButton {
+                background-color: var(--primary);
+                color: white;
+            }
+
+            #proceedButton:hover:not(:disabled) {
+                background-color: #1e293b;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }
+
+            #proceedButton:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                background-color: var(--text-muted);
+            }
+
             #cancelButton {
-                background-color: #6c757d;
+                background-color: transparent;
+                color: var(--text-muted);
+                font-weight: 600;
             }
-            #cancelButton:hover {
-                background-color: #5a6268;
+
+            #cancelButton:hover:not(:disabled) {
+                color: var(--text);
+                background-color: var(--bg);
             }
-            /* --- DARK MODE SUPPORT --- */
+
+            #countdown {
+                margin-left: 6px;
+                opacity: 0.8;
+                font-weight: 500;
+            }
+
+            /* --- DARK MODE --- */
             @media (prefers-color-scheme: dark) {
                 :root {
-                    --calm-blue: #8ec6ff;
-                    --zen-light: #181a1b;
-                    --zen-dark: #f1f1f1;
+                    --bg: #0f172a;
+                    --surface: #1e293b;
+                    --text: #f8fafc;
+                    --text-muted: #94a3b8;
+                    --border: #334155;
+                    --primary: #f8fafc;
+                    --accent: #60a5fa;
                 }
-                body {
-                    background-color: var(--zen-light);
-                    color: var(--zen-dark);
+
+                .card {
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
                 }
-                .container {
-                    background-color: #23272a;
-                    color: var(--zen-dark);
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+
+                #proceedButton {
+                    background-color: var(--accent);
+                    color: #0f172a;
                 }
-                h1,
-                p {
-                    color: var(--calm-blue);
+
+                #proceedButton:hover:not(:disabled) {
+                    background-color: #93c5fd;
                 }
-                input[type="text"],
-                select {
-                    background-color: #23272a;
-                    color: var(--zen-dark);
-                    border: 1px solid #444;
-                }
-                input[type="text"]:focus,
-                select:focus {
-                    border-color: var(--calm-blue);
-                    box-shadow: 0 0 0 2px rgba(142, 198, 255, 0.15);
-                }
-                button,
-                #cancelButton {
-                    background-color: var(--calm-blue);
-                    color: #181a1b;
-                }
-                button:hover,
-                #cancelButton:hover {
-                    background-color: #4a90e2;
-                    color: #fff;
+
+                .star {
+                    color: #334155;
                 }
             }
         </style>
     </head>
-    <body
-        class="flex flex-col items-center justify-center h-screen m-0 p-5 text-center"
-    >
-        <div
-            id="loginContainer"
-            class="container p-10 rounded-lg shadow-xl max-w-lg"
-            style="display: none"
-        >
-            <h1 class="text-4xl text-calm-blue mb-5 font-bold">
-                Sign in Required
-            </h1>
-            <p class="text-lg text-zen-dark mb-5">
-                Please sign in with Google to continue.
-            </p>
-            <button
-                id="loginWithGoogleButton"
-                class="bg-calm-blue text-white py-3 px-6 rounded-md cursor-pointer hover:bg-zen-dark transition duration-300 ease-in-out block w-full mb-3"
-            >
-                Login with Google
-            </button>
-        </div>
-        <div id="mainUI" class="container p-10 rounded-lg shadow-xl max-w-lg">
-            <h1 class="text-4xl text-calm-blue mb-5 font-bold">
-                Why do you want to open this site?
-            </h1>
-            <p class="text-lg text-zen-dark mb-5">
-                Please reflect on your intention before proceeding.
-            </p>
-            <input
-                type="text"
-                id="reasonInput"
-                placeholder="Your reason here..."
-                class="w-full p-3 mb-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-calm-blue"
-                required
-            />
-            <select
-                id="dumbReasonDropdown"
-                class="w-full p-3 mb-5 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-calm-blue"
-                required
-            >
-                <option value="" disabled selected>
-                    How dumb is this reason? 🤔
-                </option>
-                <option value="productive">Actually Productive! 🎯</option>
-                <option value="slightly_distracted">
-                    Slightly Distracted 😅
-                </option>
-                <option value="pretty_distracted">Pretty Distracted 😬</option>
-                <option value="very_distracted">Very Distracted 😫</option>
-                <option value="extremely_distracted">
-                    Extremely Distracted 🤦‍♂️
-                </option>
-            </select>
-            <div
-                id="validationMessage"
-                style="color: #e74c3c; margin-bottom: 10px; display: none"
-            ></div>
-            <button
-                id="proceedButton"
-                class="bg-calm-blue text-white py-3 px-6 rounded-md cursor-pointer hover:bg-zen-dark transition duration-300 ease-in-out block w-full mb-3"
-            >
-                Proceed Anyway
-            </button>
-            <button
-                id="cancelButton"
-                class="bg-gray-500 text-white py-3 px-6 rounded-md cursor-pointer hover:bg-gray-600 transition duration-300 ease-in-out block w-full"
-            >
-                Go Back / Stay Focused
-            </button>
+    <body>
+        <div class="container">
+            <div id="mainUI" class="card">
+                <h1 id="promptTitle">Why do you want to visit this site?</h1>
+                <p>Take a moment to reflect on your intention.</p>
+
+                <div class="input-group">
+                    <label for="reasonInput">Intention</label>
+                    <input
+                        type="text"
+                        id="reasonInput"
+                        placeholder="I need to check..."
+                        autocomplete="off"
+                    />
+                    <div id="wordCount">0 words (minimum 3 words)</div>
+                </div>
+
+                <div class="rating-section">
+                    <label>Productivity Level</label>
+                    <div class="star-rating" id="starRating">
+                        <div class="star" data-value="1">★</div>
+                        <div class="star" data-value="2">★</div>
+                        <div class="star" data-value="3">★</div>
+                        <div class="star" data-value="4">★</div>
+                        <div class="star" data-value="5">★</div>
+                    </div>
+                    <div id="ratingText">Select a rating</div>
+                </div>
+
+                <div class="actions">
+                    <button id="proceedButton">
+                        Proceed Anyway <span id="countdown"></span>
+                    </button>
+                    <button id="cancelButton">
+                        I'll do something else
+                    </button>
+                </div>
+            </div>
         </div>
         <script src="why_prompt.js"></script>
     </body>

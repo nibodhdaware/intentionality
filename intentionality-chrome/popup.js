@@ -1,38 +1,9 @@
 // Firestore-based data storage for Intentionality extension
-import "./lib/browser-polyfill.js";
+import './lib/browser-polyfill.js';
 
-// Get current user ID from browser or chrome storage
+// Get current user ID (now using local storage only)
 async function getCurrentUserId() {
-    const storage =
-        typeof browser !== "undefined" && chrome.storage
-            ? chrome.storage
-            : typeof chrome !== "undefined"
-            ? chrome.storage
-            : null;
-
-    if (!storage) {
-        console.error("❌ No browser or chrome storage API found.");
-        return null;
-    }
-
-    return new Promise((resolve) => {
-        storage.sync.get(["userInfo", "authToken"], (result) => {
-            const userInfo = result.userInfo;
-            const authToken = result.authToken;
-
-            // More detailed debugging
-            console.log("Debug - Storage result:", result);
-            console.log("Debug - userInfo:", userInfo);
-            console.log("Debug - authToken:", authToken ? "exists" : "missing");
-            if (userInfo) {
-                console.log("Debug - userInfo fields:", Object.keys(userInfo));
-            } else {
-                console.log("Debug - userInfo is undefined or null");
-            }
-
-            resolve(userInfo ? userInfo.uid : null);
-        });
-    });
+    return "local_user";
 }
 
 // Check if a site is blocked (helper function)
@@ -49,75 +20,112 @@ async function checkIfSiteBlocked(hostname) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    const mainPopupUI = document.getElementById("mainPopupUI");
+    const mainPopupUI = document.querySelector(".main-container");
     const siteInput = document.getElementById("siteInput");
     const addSiteButton = document.getElementById("addSite");
     const blockedSitesList = document.getElementById("blockedSitesList");
-    const datePicker = document.getElementById("datePicker");
-    const chartOverlay = document.getElementById("chartOverlay");
+    const settingsLink = document.getElementById("settingsLink");
+    
+    // Modal Elements
+    const configModal = document.getElementById("configModal");
+    const closeConfigBtn = document.getElementById("closeConfig");
+    const saveConfigBtn = document.getElementById("saveConfigBtn");
+    const removeSiteBtn = document.getElementById("removeSiteBtn");
+    const configSiteName = document.getElementById("configSiteName");
+    const customPromptInput = document.getElementById("customPrompt");
+    const customTimeInput = document.getElementById("customTime");
 
-    // Show main UI
-    mainPopupUI.style.display = "flex";
+    let currentEditingSite = null;
 
-    // Set default date to today - ensure this happens after DOM is ready
-    function setDefaultDate() {
-        const today = new Date().toISOString().split("T")[0];
-        datePicker.value = today;
-        console.log("Date picker set to:", today);
+    // Add settings link handler
+    settingsLink.addEventListener("click", function(e) {
+        e.preventDefault();
+        window.location.href = chrome.runtime.getURL("settings.html");
+    });
+
+    // Modal Event Listeners
+    closeConfigBtn.onclick = closeConfig;
+    window.onclick = function(event) {
+        if (event.target == configModal) {
+            closeConfig();
+        }
+    };
+
+    saveConfigBtn.onclick = async () => {
+        if (!currentEditingSite) return;
+        
+        const config = {
+            prompt: customPromptInput.value.trim(),
+            time: parseInt(customTimeInput.value) || 10
+        };
+
+        await saveSiteConfig(currentEditingSite, config);
+        closeConfig();
+    };
+
+    removeSiteBtn.onclick = async () => {
+        if (!currentEditingSite) return;
+        
+        // Use a standard confirm for now, but ensure it works
+        const confirmed = confirm(`Are you sure you want to unblock ${currentEditingSite}?`);
+        if (confirmed) {
+            const siteToRemove = currentEditingSite;
+            closeConfig(); // Close first to avoid UI glitches
+            await removeSite(siteToRemove);
+        }
+    };
+
+    function closeConfig() {
+        configModal.classList.add("hidden");
+        currentEditingSite = null;
     }
 
-    // Set the date immediately and also after a short delay to ensure it takes effect
-    setDefaultDate();
+    async function openConfig(site) {
+        currentEditingSite = site;
+        configSiteName.textContent = `Configure ${site}`;
+        configModal.classList.remove("hidden");
+
+        // Load existing config
+        chrome.storage.sync.get(["siteConfigs"], function(result) {
+            const configs = result.siteConfigs || {};
+            const siteConfig = configs[site] || {};
+            
+            customPromptInput.value = siteConfig.prompt || "";
+            customTimeInput.value = siteConfig.time || ""; 
+        });
+    }
+
+    async function saveSiteConfig(site, config) {
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(["siteConfigs"], function(result) {
+                const configs = result.siteConfigs || {};
+                configs[site] = config;
+                
+                chrome.storage.sync.set({ siteConfigs: configs }, function() {
+                    console.log(`Saved config for ${site}`);
+                    resolve();
+                });
+            });
+        });
+    }
+
+    // Load today's activity stats
     setTimeout(() => {
-        setDefaultDate();
-        // Trigger initial load after setting the date
         loadActivityStats();
     }, 100);
-
-    // Check authentication state
-    checkAuthState();
 
     // Check and reset state if it's a new day
     checkAndResetDailyState();
 
-    // Function to check authentication state
-    function checkAuthState() {
-        chrome.storage.sync.get(["authToken", "userInfo"], function (result) {
-            const authToken = result.authToken;
-            const userInfo = result.userInfo;
-
-            if (authToken && userInfo) {
-                // User is logged in, hide overlay
-                chartOverlay.classList.add("hidden");
-            } else {
-                // User is not logged in, show overlay
-                chartOverlay.classList.remove("hidden");
-            }
-        });
-    }
-
-    // Listen for messages from the login page
+    // Listen for messages from other parts of the extension
     chrome.runtime.onMessage.addListener(function (
         request,
         sender,
         sendResponse,
     ) {
-        if (request.type === "LOGIN_SUCCESS") {
-            // Store the auth token and user info
-            chrome.storage.sync.set(
-                {
-                    authToken: request.token,
-                    userInfo: request.userInfo,
-                },
-                function () {
-                    // Hide the overlay after successful login
-                    chartOverlay.classList.add("hidden");
-                    console.log("User logged in successfully");
-                },
-            );
-        } else if (request.action === "getBlockedSitesFromFirestore") {
+        if (request.action === "getBlockedSitesFromStorage") {
             // Handle request from background script for blocked sites
-            getBlockedSitesForBackground()
+            getBlockedSitesFromStorage()
                 .then((blockedSites) => {
                     sendResponse({
                         success: true,
@@ -139,221 +147,64 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Function to get blocked sites for background script
-    async function getBlockedSitesForBackground() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available for background script");
-                return null;
-            }
-
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                return null;
-            }
-
-            const docRef = firebase
-                .firestore()
-                .collection("users")
-                .doc(userId)
-                .collection("settings")
-                .doc("blockedSites");
-            const doc = await docRef.get();
-
-            if (doc.exists) {
-                const data = doc.data();
-                return data.sites || [];
-            }
-
-            return null;
-        } catch (error) {
-            console.error("Error getting blocked sites for background:", error);
-            return null;
-        }
-    }
-
-    // Load and display blocked sites from Firestore
-    async function loadBlockedSites() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                loadBlockedSitesFromBrowser();
-                return;
-            }
-
-            const userId = await getCurrentUserId();
-            console.log(
-                "Debug - Attempting to load blocked sites for userId:",
-                userId,
-            );
-
-            if (!userId) {
-                console.log(
-                    "No user ID available, using local storage fallback",
-                );
-                loadBlockedSitesFromBrowser();
-                return;
-            }
-
-            const docRef = firebase
-                .firestore()
-                .collection("users")
-                .doc(userId)
-                .collection("settings")
-                .doc("blockedSites");
-            const doc = await docRef.get();
-
-            if (doc.exists) {
-                const data = doc.data();
-                const blockedSites = data.sites || [];
-                displayBlockedSites(blockedSites);
-            } else {
-                // If no Firestore document exists, try to migrate from browser storage
-                await migrateBlockedSitesToFirestore();
-            }
-        } catch (error) {
-            console.error("Error loading blocked sites from Firestore:", error);
-            console.log(
-                "Falling back to browser storage due to Firestore error",
-            );
-            // Fallback to browser storage
-            loadBlockedSitesFromBrowser();
-        }
-    }
-
-    // Fallback function to load blocked sites from browser storage
-    function loadBlockedSitesFromBrowser() {
-        chrome.storage.sync.get(["blockedSites"], function (result) {
-            const blockedSites = result.blockedSites || [];
-            displayBlockedSites(blockedSites);
+    async function getBlockedSitesFromStorage() {
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(["blockedSites"], function (result) {
+                const blockedSites = result.blockedSites || [];
+                resolve(blockedSites);
+            });
         });
     }
 
-    // Sync blocked sites from Firestore to browser storage on popup load
-    async function syncBlockedSitesFromFirestore() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                return; // No Firebase, skip sync
-            }
-
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                return; // No user ID, skip sync
-            }
-
-            const docRef = firebase
-                .firestore()
-                .collection("users")
-                .doc(userId)
-                .collection("settings")
-                .doc("blockedSites");
-            const doc = await docRef.get();
-
-            if (doc.exists) {
-                const data = doc.data();
-                const blockedSites = data.sites || [];
-                // Sync to browser storage for background script
-                syncBlockedSitesToBrowser(blockedSites);
-            }
-        } catch (error) {
-            console.error("Error syncing blocked sites from Firestore:", error);
-        }
+    // Load and display blocked sites from local storage
+    async function loadBlockedSites() {
+        chrome.storage.sync.get(["blockedSites"], function (result) {
+            let blockedSites = result.blockedSites || [];
+            displayBlockedSites(blockedSites);
+        });
     }
 
     // Display blocked sites in the UI
     function displayBlockedSites(blockedSites) {
         blockedSitesList.innerHTML = "";
 
+        if (blockedSites.length === 0) {
+            blockedSitesList.innerHTML = '<div class="empty">No websites blocked yet</div>';
+        }
+
         blockedSites.forEach((site) => {
             const siteItem = document.createElement("div");
             siteItem.className = "site-item";
 
             const siteText = document.createElement("span");
+            siteText.className = "site-name";
             siteText.textContent = site;
 
-            const removeButton = document.createElement("button");
-            removeButton.className = "remove-btn";
-            removeButton.textContent = "Remove";
-            removeButton.onclick = () => removeSite(site);
+            const configButton = document.createElement("button");
+            configButton.className = "btn-icon";
+            configButton.innerHTML = "&#9881;"; // Gear symbol
+            configButton.title = "Configure site";
+            configButton.onclick = (e) => {
+                e.stopPropagation();
+                openConfig(site);
+            };
 
             siteItem.appendChild(siteText);
-            siteItem.appendChild(removeButton);
+            siteItem.appendChild(configButton);
             blockedSitesList.appendChild(siteItem);
         });
-
-        // Sync to browser storage for background script access
-        syncBlockedSitesToBrowser(blockedSites);
     }
 
     // Sync blocked sites to browser storage for background script access
     function syncBlockedSitesToBrowser(blockedSites) {
-        chrome.storage.sync.set({ blockedSites: blockedSites }, function () {
-            if (chrome.runtime.lastError) {
-                console.error(
-                    "Error syncing blocked sites to browser storage:",
-                    chrome.runtime.lastError,
-                );
-            } else {
-                console.log(
-                    `Synced ${blockedSites.length} blocked sites to browser storage`,
-                );
-            }
-        });
+        chrome.storage.sync.set({ blockedSites: blockedSites });
     }
 
-    // Add a new site to the block list in Firestore
+    // Add a new site to the block list
     async function addSite() {
-        const site = siteInput.value.trim().toLowerCase();
+        const site = siteInput.value.trim().toLowerCase().replace(/https?:\/\//, "").replace(/www\./, "").split('/')[0];
         if (!site) return;
 
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                addSiteToBrowser(site);
-                return;
-            }
-
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                // Fallback to browser storage
-                addSiteToBrowser(site);
-                return;
-            }
-
-            const docRef = firebase
-                .firestore()
-                .collection("users")
-                .doc(userId)
-                .collection("settings")
-                .doc("blockedSites");
-            const doc = await docRef.get();
-
-            let blockedSites = [];
-            if (doc.exists) {
-                const data = doc.data();
-                blockedSites = data.sites || [];
-            }
-
-            if (!blockedSites.includes(site)) {
-                blockedSites.push(site);
-                await docRef.set({ sites: blockedSites });
-                siteInput.value = "";
-                loadBlockedSites();
-                // Sync to browser storage for background script
-                syncBlockedSitesToBrowser(blockedSites);
-            }
-        } catch (error) {
-            console.error("Error adding site to Firestore:", error);
-            // Fallback to browser storage
-            addSiteToBrowser(site);
-        }
-    }
-
-    // Fallback function to add site to browser storage
-    function addSiteToBrowser(site) {
         chrome.storage.sync.get(["blockedSites"], function (result) {
             const blockedSites = result.blockedSites || [];
             if (!blockedSites.includes(site)) {
@@ -366,91 +217,34 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Remove a site from the block list in Firestore
+    // Remove a site from the block list
     async function removeSite(site) {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                removeSiteFromBrowser(site);
-                return;
-            }
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(["blockedSites", "siteConfigs"], function (result) {
+                const blockedSites = result.blockedSites || [];
+                const updatedSites = blockedSites.filter((s) => s !== site);
+                
+                const configs = result.siteConfigs || {};
+                if (configs[site]) {
+                    delete configs[site];
+                }
 
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                // Fallback to browser storage
-                removeSiteFromBrowser(site);
-                return;
-            }
-
-            const docRef = firebase
-                .firestore()
-                .collection("users")
-                .doc(userId)
-                .collection("settings")
-                .doc("blockedSites");
-            const doc = await docRef.get();
-
-            if (doc.exists) {
-                const data = doc.data();
-                let blockedSites = data.sites || [];
-                blockedSites = blockedSites.filter((s) => s !== site);
-                await docRef.set({ sites: blockedSites });
-                loadBlockedSites();
-                // Sync to browser storage for background script
-                syncBlockedSitesToBrowser(blockedSites);
-            }
-        } catch (error) {
-            console.error("Error removing site from Firestore:", error);
-            // Fallback to browser storage
-            removeSiteFromBrowser(site);
-        }
-    }
-
-    // Fallback function to remove site from browser storage
-    function removeSiteFromBrowser(site) {
-        chrome.storage.sync.get(["blockedSites"], function (result) {
-            const blockedSites = result.blockedSites || [];
-            const updatedSites = blockedSites.filter((s) => s !== site);
-            chrome.storage.sync.set(
-                { blockedSites: updatedSites },
-                function () {
-                    loadBlockedSites();
-                },
-            );
+                chrome.storage.sync.set(
+                    { 
+                        blockedSites: updatedSites,
+                        siteConfigs: configs
+                    },
+                    function () {
+                        console.log(`Removed ${site}`);
+                        loadBlockedSites();
+                        resolve();
+                    },
+                );
+            });
         });
     }
 
-    // Migrate blocked sites from browser storage to Firestore
-    async function migrateBlockedSitesToFirestore() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, cannot migrate");
-                return;
-            }
-
-            const userId = await getCurrentUserId();
-            if (!userId) return;
-
-            chrome.storage.sync.get(["blockedSites"], async function (result) {
-                const blockedSites = result.blockedSites || [];
-                if (blockedSites.length > 0) {
-                    const docRef = firebase
-                        .firestore()
-                        .collection("users")
-                        .doc(userId)
-                        .collection("settings")
-                        .doc("blockedSites");
-                    await docRef.set({ sites: blockedSites });
-                    console.log("Migrated blocked sites to Firestore");
-                }
-                displayBlockedSites(blockedSites);
-            });
-        } catch (error) {
-            console.error("Error migrating blocked sites:", error);
-        }
-    }
+    
 
     // Check if it's a new day and reset state if needed
     function checkAndResetDailyState() {
@@ -481,153 +275,13 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // Date picker event listener
-    datePicker.addEventListener("change", function () {
-        console.log("Date picker changed to:", datePicker.value);
-        loadActivityStats();
-    });
-
     // Initial load for blocked sites
     loadBlockedSites();
 
-    // Sync blocked sites from Firestore to browser storage for background script
-    syncBlockedSitesFromFirestore();
-
-    // Check migration status and show migration button if needed
-    checkMigrationStatus();
-
-    // Function to check migration status and show migration button if needed
-    async function checkMigrationStatus() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                return; // No Firebase, skip migration check
-            }
-
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                return; // No user ID, skip migration check
-            }
-
-            const migrationUtil = new MigrationUtility();
-            const status = await migrationUtil.checkMigrationStatus();
-
-            if (status.needsMigration) {
-                const migrateButton = document.getElementById("migrateButton");
-                const migrationStatus =
-                    document.getElementById("migrationStatus");
-
-                migrateButton.style.display = "block";
-                migrationStatus.textContent = status.reason;
-                migrateButton.onclick = performMigration;
-            }
-        } catch (error) {
-            console.error("Error checking migration status:", error);
-        }
-    }
-
-    // Function to perform data migration
-    async function performMigration() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                const migrationStatus =
-                    document.getElementById("migrationStatus");
-                migrationStatus.textContent =
-                    "Firebase not available for migration";
-                return;
-            }
-
-            const migrateButton = document.getElementById("migrateButton");
-            const migrationStatus = document.getElementById("migrationStatus");
-
-            // Disable button and show loading state
-            migrateButton.disabled = true;
-            migrateButton.textContent = "Migrating...";
-            migrationStatus.textContent = "Migrating your data to the cloud...";
-
-            const migrationUtil = new MigrationUtility();
-            const result = await migrationUtil.migrateAllData();
-
-            if (result.success) {
-                migrationStatus.textContent =
-                    "Migration completed successfully!";
-                migrateButton.style.display = "none";
-
-                // Reload data to show migrated content
-                loadBlockedSites();
-                loadActivityStats();
-            } else {
-                migrationStatus.textContent = `Migration failed: ${result.error}`;
-                migrateButton.disabled = false;
-                migrateButton.textContent = "Retry Migration";
-            }
-        } catch (error) {
-            console.error("Migration error:", error);
-            const migrationStatus = document.getElementById("migrationStatus");
-            const migrateButton = document.getElementById("migrateButton");
-
-            migrationStatus.textContent = `Migration failed: ${error.message}`;
-            migrateButton.disabled = false;
-            migrateButton.textContent = "Retry Migration";
-        }
-    }
-
     // Load activity statistics
     async function loadActivityStats() {
-        try {
-            // Check if Firebase is available
-            if (typeof firebase === "undefined" || !firebase.firestore) {
-                console.log("Firebase not available, using browser storage");
-                loadActivityStatsFromBrowser(datePicker.value);
-                return;
-            }
-
-            const userId = await getCurrentUserId();
-            if (!userId) {
-                console.log("No user ID available, using browser storage");
-                loadActivityStatsFromBrowser(datePicker.value);
-                return;
-            }
-
-            const selectedDate = datePicker.value;
-            const startOfDay = new Date(selectedDate);
-            startOfDay.setHours(0, 0, 0, 0);
-            const endOfDay = new Date(selectedDate);
-            endOfDay.setHours(23, 59, 59, 999);
-
-            const activitiesRef = firebase
-                .firestore()
-                .collection("users")
-                .doc(userId)
-                .collection("activities");
-            const snapshot = await activitiesRef
-                .where("timestamp", ">=", startOfDay)
-                .where("timestamp", "<=", endOfDay)
-                .orderBy("timestamp", "desc")
-                .get();
-
-            const activityLog = [];
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                activityLog.push({
-                    url: data.url,
-                    reason: data.reason,
-                    dumbReason: data.dumbReason,
-                    timestamp: data.timestamp.toDate().toISOString(),
-                    sessionDuration: data.sessionDuration,
-                });
-            });
-
-            renderActivityStats(activityLog, selectedDate);
-        } catch (error) {
-            console.error(
-                "Error loading activity stats from Firestore:",
-                error,
-            );
-            // Fallback to browser storage
-            loadActivityStatsFromBrowser(datePicker.value);
-        }
+        const today = new Date().toISOString().split("T")[0];
+        loadActivityStatsFromBrowser(today);
     }
 
     // Fallback function to load activity stats from browser storage
@@ -651,14 +305,26 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 
         const activityStats = document.getElementById("activityStats");
-        activityStats.innerHTML = "";
 
         if (filteredActivities.length === 0) {
             activityStats.innerHTML = `
-                <div style="text-align: center; color: #666; padding: 20px;">
-                    No activities recorded for ${selectedDate}
+                <div class="stats-container">
+                    <div class="stats-row">
+                        <span class="stats-label">Productive visits:</span>
+                        <span class="stats-value productive">0</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">Distracted visits:</span>
+                        <span class="stats-value distracted">0</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">Total activities:</span>
+                        <span class="stats-value">0</span>
+                    </div>
                 </div>
             `;
+            // Create empty chart
+            createActivityChart([]);
             return;
         }
 
@@ -699,38 +365,22 @@ document.addEventListener("DOMContentLoaded", function () {
         const minutesDistracted = Math.round(totalTimeDistracted / 60);
 
         activityStats.innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-                <div style="background: #e8f5e8; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #2d5a2d;">${productiveCount}</div>
-                    <div style="font-size: 12px; color: #666;">Productive Visits</div>
+            <div class="stats-container">
+                <div class="stat-card">
+                    <span class="stat-label">Productive</span>
+                    <span class="stat-value productive">${productiveCount}</span>
                 </div>
-                <div style="background: #fff3cd; padding: 12px; border-radius: 8px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: bold; color: #856404;">${distractedCount}</div>
-                    <div style="font-size: 12px; color: #666;">Distracted Visits</div>
+                <div class="stat-card">
+                    <span class="stat-label">Distracted</span>
+                    <span class="stat-value distracted">${distractedCount}</span>
                 </div>
-            </div>
-            <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span>Productive:</span>
-                    <span style="font-weight: bold;">${productivePercentage.toFixed(
-                        1,
-                    )}%</span>
+                <div class="stat-card">
+                    <span class="stat-label">Total Visits</span>
+                    <span class="stat-value">${filteredActivities.length}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span>Distracted:</span>
-                    <span style="font-weight: bold;">${distractedPercentage.toFixed(
-                        1,
-                    )}%</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span>Time Distracted:</span>
-                    <span style="font-weight: bold;">${minutesDistracted} min</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span>Overall Score:</span>
-                    <span style="font-weight: bold; color: ${
-                        averageScore >= 0 ? "#2d5a2d" : "#856404"
-                    };">${averageScore.toFixed(2)}</span>
+                <div class="stat-card">
+                    <span class="stat-label">Score</span>
+                    <span class="stat-value">${averageScore > 0 ? '+' : ''}${averageScore.toFixed(2)}</span>
                 </div>
             </div>
         `;
@@ -772,81 +422,149 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
-        // Group activities by hour
-        const hourlyData = {};
-        activityLog.forEach((activity) => {
-            const date = new Date(activity.timestamp);
-            const hour = date.getHours();
-            if (!hourlyData[hour]) {
-                hourlyData[hour] = { productive: 0, distracted: 0 };
-            }
+        // Sort activities by timestamp for chronological order
+        const sortedActivities = activityLog.sort((a, b) => 
+            new Date(a.timestamp) - new Date(b.timestamp)
+        );
 
-            const productivityScores = {
-                productive: 1,
-                slightly_distracted: 0.5,
-                pretty_distracted: 0,
-                very_distracted: -0.5,
-                extremely_distracted: -1,
-            };
+        // Calculate cumulative productivity score
+        const productivityScores = {
+            productive: 1,
+            slightly_distracted: 0.5,
+            pretty_distracted: 0,
+            very_distracted: -0.5,
+            extremely_distracted: -1,
+        };
 
+        let cumulativeScore = 0;
+        const chartData = [];
+        
+        sortedActivities.forEach((activity, index) => {
             const score = productivityScores[activity.dumbReason] || 0;
-            if (score > 0) {
-                hourlyData[hour].productive++;
-            } else if (score < 0) {
-                hourlyData[hour].distracted++;
-            }
+            cumulativeScore += score;
+            
+            const date = new Date(activity.timestamp);
+            const timeLabel = date.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+            });
+            
+            chartData.push({
+                x: timeLabel,
+                y: cumulativeScore,
+                activity: activity.reason,
+                score: score
+            });
         });
 
-        // Prepare chart data
-        const labels = [];
-        const productiveData = [];
-        const distractedData = [];
-
-        for (let hour = 0; hour < 24; hour++) {
-            labels.push(`${hour}:00`);
-            productiveData.push(hourlyData[hour]?.productive || 0);
-            distractedData.push(hourlyData[hour]?.distracted || 0);
+        // If no data, create empty chart
+        if (chartData.length === 0) {
+            chartData.push({ x: '00:00', y: 0, activity: 'No activity', score: 0 });
         }
 
-        // Create chart with error handling
+        const labels = chartData.map(d => d.x);
+        const productivityData = chartData.map(d => d.y);
+
+        // Create line chart with error handling
         try {
             window.activityChart = new Chart(ctx, {
-                type: "bar",
+                type: "line",
                 data: {
                     labels: labels,
                     datasets: [
                         {
-                            label: "Productive",
-                            data: productiveData,
-                            backgroundColor: "#28a745",
-                            borderColor: "#28a745",
-                            borderWidth: 1,
-                        },
-                        {
-                            label: "Distracted",
-                            data: distractedData,
-                            backgroundColor: "#ffc107",
-                            borderColor: "#ffc107",
-                            borderWidth: 1,
-                        },
+                            label: "Productivity Trend",
+                            data: productivityData,
+                            borderColor: cumulativeScore >= 0 ? "#10b981" : "#ef4444",
+                            backgroundColor: cumulativeScore >= 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: "#fff",
+                            pointBorderColor: cumulativeScore >= 0 ? "#10b981" : "#ef4444",
+                            pointBorderWidth: 2,
+                        }
                     ],
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index',
+                    },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1,
+                        x: {
+                            grid: {
+                                display: false,
                             },
+                            ticks: {
+                                maxTicksLimit: 10,
+                                color: '#6b7280',
+                                font: {
+                                    size: 10
+                                },
+                                autoSkip: true,
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'rgba(107, 114, 128, 0.1)',
+                                borderDash: [2, 2],
+                            },
+                            ticks: {
+                                color: '#6b7280',
+                                font: {
+                                    size: 11
+                                },
+                                callback: function(value) {
+                                    return value > 0 ? '+' + value : value;
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Cumulative Score',
+                                color: '#6b7280',
+                                font: {
+                                    size: 11
+                                }
+                            }
                         },
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            position: "top",
+                            display: false
                         },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            titleFont: {
+                                size: 12
+                            },
+                            bodyFont: {
+                                size: 11
+                            },
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Time: ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    const dataPoint = chartData[context.dataIndex];
+                                    const scoreText = dataPoint.score > 0 ? 'Productive' : dataPoint.score < 0 ? 'Distracted' : 'Neutral';
+                                    return [
+                                        'Score: ' + (context.parsed.y > 0 ? '+' : '') + context.parsed.y.toFixed(1),
+                                        'Reason: ' + dataPoint.activity,
+                                        'Type: ' + scoreText
+                                    ];
+                                }
+                            }
+                        }
                     },
                 },
             });

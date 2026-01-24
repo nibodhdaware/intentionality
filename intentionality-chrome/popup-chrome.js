@@ -258,8 +258,9 @@ document.addEventListener("DOMContentLoaded", function () {
             siteText.textContent = site;
 
             const removeButton = document.createElement("button");
-            removeButton.className = "remove-btn";
-            removeButton.textContent = "Remove";
+            removeButton.className = "btn-icon";
+            removeButton.innerHTML = "&times;";
+            removeButton.title = "Remove site";
             removeButton.onclick = () => removeSite(site);
 
             siteItem.appendChild(siteText);

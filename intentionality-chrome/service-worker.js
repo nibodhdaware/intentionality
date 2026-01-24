@@ -1,46 +1,7 @@
 import "./lib/browser-polyfill.js";
 console.log("Service worker loaded successfully!");
 
-// Listen for external messages (like login)
-chrome.runtime.onMessageExternal.addListener(
-    (message, sender, sendResponse) => {
-        console.log("Received external message:", message);
-        console.log("From:", sender.url);
 
-        if (
-            message.type === "LOGIN_SUCCESS" &&
-            message.userInfo &&
-            message.token
-        ) {
-            console.log("Processing login success");
-
-            // Store the auth data
-            chrome.storage.sync.set(
-                {
-                    authToken: message.token,
-                    userInfo: message.userInfo,
-                },
-                () => {
-                    if (chrome.runtime.lastError) {
-                        console.error(
-                            "Error storing auth data:",
-                            chrome.runtime.lastError,
-                        );
-                        sendResponse({
-                            status: "error",
-                            error: chrome.runtime.lastError.message,
-                        });
-                    } else {
-                        console.log("Auth data stored successfully");
-                        sendResponse({ status: "success" });
-                    }
-                },
-            );
-
-            return true; // Keep message channel open for async response
-        }
-    },
-);
 
 let temporarilyAllowedUrls = []; // Stores objects like { tabId: 123, url: "https://example.com" }
 
@@ -415,9 +376,6 @@ function setupWebNavigationListener() {
                 blockedHostname: hostname,
                 blockedTabId: details.tabId,
             });
-
-            // Log the blocking event
-            logBlockingEvent(hostname, details.url);
         }
     });
 }
@@ -594,244 +552,61 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
         temporarilyAllowedUrls.push(request.url);
         sendResponse({ status: "success" });
     } else if (request.action === "proceedToUrl") {
-        if (request.tabId && request.url) {
-            // Add the tabId and URL to the temporarily allowed list
+        if (request.url) {
+            // Add to allowed list first
             temporarilyAllowedUrls.push({
                 tabId: request.tabId,
                 url: request.url,
             });
 
-            // Directly update the original tab to the requested URL
-            chrome.tabs.update(
-                request.tabId,
-                { url: request.url },
-                function () {
-                    if (chrome.runtime.lastError) {
-                        console.error(
-                            "Error updating tab: ",
-                            chrome.runtime.lastError.message,
-                        );
-                        sendResponse({
-                            status: "error",
-                            message: chrome.runtime.lastError.message,
-                        });
-                    } else {
-                        // Wait for the navigation to start before sending success
-                        setTimeout(() => {
+            if (request.tabId) {
+                // Navigate the original tab
+                chrome.tabs.update(
+                    request.tabId,
+                    { url: request.url },
+                    function () {
+                        if (chrome.runtime.lastError) {
+                            sendResponse({ status: "error" });
+                        } else {
                             sendResponse({ status: "success" });
-                        }, 500);
-                    }
-                },
-            );
-            return true; // Keep the message channel open for the async response
-        } else {
-            sendResponse({ status: "error", message: "Missing tabId or URL" });
+                        }
+                    },
+                );
+            } else {
+                // If no tabId (unlikely), navigation will happen in the prompt tab
+                sendResponse({ status: "fallback" });
+            }
+            return true;
         }
-    } else if (request.action === "getBlockedSitesFromFirestore") {
-        // This will be handled by the popup if it's open
-        // For now, return null to indicate fallback to browser storage
-        sendResponse({ success: false, blockedSites: null });
-    } else if (request.type === "LOGIN_SUCCESS") {
-        // Handle login success from the login page
-        console.log("Login success received in background script");
-
-        // Store the authentication data
-        chrome.storage.sync.set(
-            {
-                authToken: request.token,
-                userInfo: request.userInfo,
-            },
-            function () {
-                console.log("Authentication data stored");
-
-                // Forward the message to any open popup
-                chrome.runtime.sendMessage(request);
-
-                sendResponse({ status: "success" });
-            },
-        );
-
+    } else if (request.action === "getBlockedSitesFromStorage") {
+        // Get blocked sites from browser storage
+        getBlockedSitesFromStorage()
+            .then((blockedSites) => {
+                sendResponse({ success: true, blockedSites: blockedSites });
+            })
+            .catch((error) => {
+                console.error("Error getting blocked sites:", error);
+                sendResponse({ success: false, blockedSites: [] });
+            });
         return true; // Keep the message channel open for the async response
     }
 });
 
-// Listen for messages from external websites (like the login page)
-chrome.runtime.onMessageExternal.addListener(
-    (message, sender, sendResponse) => {
-        console.log("External message received:", message, "from:", sender);
 
-        if (message.type === "LOGIN_SUCCESS") {
-            const token = message.token;
-            const userInfo = message.userInfo;
-
-            console.log(
-                "External login success received with token:",
-                token ? "present" : "missing",
-            );
-
-            // Store token and user info using chrome.storage
-            chrome.storage.sync.set(
-                {
-                    authToken: token,
-                    userInfo: userInfo,
-                },
-                () => {
-                    console.log(
-                        "User is logged in! Token and user info stored.",
-                    );
-
-                    // Forward the message to any open popup
-                    chrome.runtime.sendMessage({
-                        type: "LOGIN_SUCCESS",
-                        token: token,
-                        userInfo: userInfo,
-                    });
-                },
-            );
-
-            sendResponse({ status: "received" });
-        }
-    },
-);
 
 // Listen for extension installation
 chrome.runtime.onInstalled.addListener(function (details) {
     if (details.reason === "install") {
-        console.log("Extension installed - redirecting to login");
-
-        // Open the login page in a new tab
-        chrome.tabs.create({
-            url: "https://intentionality.app/login.html",
-        });
+        console.log("Extension installed successfully");
     }
 });
 
 // Set uninstall URL to redirect to feedback form
 chrome.runtime.setUninstallURL("https://forms.gle/xHuRVeYARy1LVXA47");
 
-// Inject content script for login page communication
-chrome.tabs.onUpdated.addListener(function (tabId, changeInfo, tab) {
-    if (
-        changeInfo.status === "complete" &&
-        tab.url &&
-        (tab.url.includes("intentionality.app/login") ||
-            tab.url.includes("intentionality.app/login.html"))
-    ) {
-        chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            function: injectLoginCommunication,
-        });
-    }
-});
 
-// Content script function to inject into login page
-function injectLoginCommunication() {
-    // Listen for custom events from the login page
-    window.addEventListener("intentionalityUserLoggedIn", function (event) {
-        // Forward the login event to the extension
-        chrome.runtime.sendMessage({
-            type: "LOGIN_SUCCESS",
-            userInfo: event.detail,
-            timestamp: Date.now(),
-        });
-    });
-
-    // Listen for localStorage changes
-    const originalSetItem = localStorage.setItem;
-    localStorage.setItem = function (key, value) {
-        originalSetItem.apply(this, arguments);
-        if (key === "intentionality_user_login") {
-            try {
-                const loginData = JSON.parse(value);
-                chrome.runtime.sendMessage({
-                    type: "LOGIN_SUCCESS",
-                    userInfo: loginData.userInfo,
-                    timestamp: loginData.timestamp,
-                });
-            } catch (e) {
-                console.error("Error parsing login data:", e);
-            }
-        }
-    };
-}
 
 // Initialize: Enable automatic blocking
 setupWebNavigationListener();
 
-// Listen for messages from external websites (like the login page)
-chrome.runtime.onMessageExternal.addListener(
-    (message, sender, sendResponse) => {
-        console.log("🔔 External message received");
-        console.log("Message:", JSON.stringify(message, null, 2));
-        console.log("Sender:", JSON.stringify(sender, null, 2));
 
-        // Validate sender origin
-        const allowedDomains = [
-            "https://intentionality.app",
-            "https://intentionality-1ce65.firebaseapp.com",
-            "https://intentionality-1ce65.web.app",
-        ];
-
-        const isAllowedDomain = allowedDomains.some(
-            (domain) => sender.url && sender.url.startsWith(domain),
-        );
-
-        if (!isAllowedDomain) {
-            console.error(
-                "🚫 Message received from unauthorized domain:",
-                sender.url,
-            );
-            sendResponse({ status: "error", message: "Unauthorized domain" });
-            return;
-        }
-
-        console.log("✅ Sender domain authorized");
-
-        if (message.type === "LOGIN_SUCCESS") {
-            console.log("🔑 Processing LOGIN_SUCCESS message");
-            const token = message.token;
-            const userInfo = message.userInfo;
-
-            console.log("Token present:", !!token);
-            console.log("UserInfo present:", !!userInfo);
-            if (userInfo) {
-                console.log("UserInfo fields:", Object.keys(userInfo));
-                console.log(
-                    "UserInfo contents:",
-                    JSON.stringify(userInfo, null, 2),
-                );
-            }
-
-            if (!userInfo || !userInfo.uid) {
-                console.error("Invalid userInfo received");
-                return;
-            }
-
-            // Store token and user info using chrome.storage
-            chrome.storage.sync.set(
-                {
-                    authToken: token,
-                    userInfo: userInfo,
-                },
-                () => {
-                    const error = chrome.runtime.lastError;
-                    if (error) {
-                        console.error("Error storing login data:", error);
-                        sendResponse({
-                            status: "error",
-                            message: error.message,
-                        });
-                    } else {
-                        console.log(
-                            "User is logged in! Token and user info stored.",
-                        );
-                        sendResponse({ status: "success" });
-                    }
-                    sendResponse({ status: "received" });
-                },
-            );
-
-            return true; // Keep the message channel open for async response
-        }
-    },
-);
