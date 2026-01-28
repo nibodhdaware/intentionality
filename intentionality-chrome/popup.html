@@ -249,6 +249,10 @@
                 pointer-events: none;
                 display: none;
             }
+
+            .hidden {
+                display: none !important;
+            }
             
             .modal-content {
                 background-color: var(--surface);
@@ -374,6 +378,21 @@
             
             <main class="content">
                 <section>
+                    <!-- Graph Section at the Top -->
+                    <div class="card" style="border:none; box-shadow:none; background:transparent;">
+                        <div class="chart-wrapper" style="padding: 0; height: 160px;">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                        <div style="text-align: center; margin-top: 8px;">
+                            <button id="toggleMoreInfo" style="background:none; border:none; color:var(--accent); font-size:0.8rem; cursor:pointer; font-weight:600;">More Info</button>
+                        </div>
+                        <div id="moreInfoContainer" class="hidden" style="margin-top: 12px;">
+                            <div id="activityStats"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
                     <div class="section-title">Block a Site</div>
                     <div class="card">
                         <div class="input-group">
@@ -391,16 +410,6 @@
                     <div class="section-title">Your Blocklist</div>
                     <div class="card">
                         <div id="blockedSitesList"></div>
-                    </div>
-                </section>
-                
-                <section>
-                    <div class="section-title">Activity Insights</div>
-                    <div class="card">
-                        <div class="chart-wrapper">
-                            <canvas id="activityChart"></canvas>
-                        </div>
-                        <div id="activityStats"></div>
                     </div>
                 </section>
             </main>

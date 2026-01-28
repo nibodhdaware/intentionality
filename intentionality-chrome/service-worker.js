@@ -498,17 +498,89 @@ function sendDailySummaryNotification() {
     });
 }
 
-// Check if it's time for daily summary (runs every minute)
-function checkDailySummary() {
-    const now = new Date();
-    if (now.getHours() === 20 && now.getMinutes() === 0) {
-        // 8:00 PM
-        sendDailySummaryNotification();
+// Set up periodic check for daily summary and API sync
+chrome.alarms.create("dailySync", { periodInMinutes: 60 }); // Check every hour
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "dailySync") {
+        checkDailySync();
+        checkDailySummary();
+    }
+});
+
+// Function to check if 24 hours have passed since last sync
+async function checkDailySync() {
+    const result = await chrome.storage.local.get(["lastSync"]);
+    const lastSync = result.lastSync || 0;
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+
+    if (now - lastSync >= twentyFourHours) {
+        console.log("Starting 24-hour API sync...");
+        await syncDataToAPI();
     }
 }
 
-// Set up periodic check for daily summary
-setInterval(checkDailySummary, 60000); // Check every minute
+// Function to sync data to Intentionality API
+async function syncDataToAPI() {
+    try {
+        const storage = await chrome.storage.sync.get(["activityLog", "lastSync"]);
+        const activityLog = storage.activityLog || [];
+        const lastSync = await chrome.storage.local.get(["lastSync"]).then(res => res.lastSync || 0);
+
+        // Filter for activities since last sync
+        const newActivities = activityLog.filter(a => a.timestamp > lastSync);
+        
+        if (newActivities.length === 0) {
+            console.log("No new activities to sync.");
+            await chrome.storage.local.set({ lastSync: Date.now() });
+            return;
+        }
+
+        const apiEndpoint = "https://intentionality.app/api/sync";
+        
+        // Map rating for API
+        const ratingMap = {
+            "productive": 5,
+            "slightly_distracted": 4,
+            "pretty_distracted": 3,
+            "very_distracted": 2,
+            "extremely_distracted": 1
+        };
+
+        let syncCount = 0;
+
+        for (const activity of newActivities) {
+            const payload = {
+                title: activity.hostname || activity.url || "unknown",
+                description: activity.reason || "",
+                rating: ratingMap[activity.dumbReason] || 3,
+                userAgent: `Chrome Extension ${chrome.runtime.getManifest().version}`
+            };
+
+            try {
+                const response = await fetch(apiEndpoint, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.ok) {
+                    syncCount++;
+                } else {
+                    console.error("API Sync failed for item:", activity.url, await response.text());
+                }
+            } catch (e) {
+                console.error("Fetch error during API sync:", e);
+            }
+        }
+
+        console.log(`Synced ${syncCount} activities to Intentionality API.`);
+        await chrome.storage.local.set({ lastSync: Date.now() });
+    } catch (error) {
+        console.error("Error during API sync:", error);
+    }
+}
 
 // Function to get blocked sites from browser storage (simplified for service worker)
 async function getBlockedSitesFromStorage() {

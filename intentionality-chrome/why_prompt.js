@@ -201,17 +201,12 @@ document.addEventListener("DOMContentLoaded", function () {
         // Convert star rating to original dumbReason format for compatibility
         const dumbReason = mapRatingToReason(selectedRating);
 
-        // Try to save to Firestore first, fallback to browser storage
-        try {
-            await saveActivityToFirestore(originalUrl, reason, dumbReason);
-        } catch (error) {
-            console.error(
-                "Error saving to Firestore, falling back to browser storage:",
-                error,
-            );
-            await saveActivityToBrowser(originalUrl, reason, dumbReason);
-        }
+        // Always save to browser storage first
+        await saveActivityToBrowser(originalUrl, reason, dumbReason);
 
+        // Batch sync to API will be handled by the service worker every 24 hours
+        // instead of syncing on every visit.
+        
         // Disable button and show loading state
         proceedButton.disabled = true;
         proceedButton.textContent = "Proceeding...";
@@ -253,45 +248,6 @@ document.addEventListener("DOMContentLoaded", function () {
         cancelButton.disabled = true;
     });
 });
-
-// Function to save activity to Firestore
-async function saveActivityToFirestore(url, reason, dumbReason) {
-    // Check if Firebase is available
-    if (typeof firebase === "undefined" || !firebase.firestore) {
-        throw new Error("Firebase not available");
-    }
-
-    // Get current user ID
-    const userId = await getCurrentUserId();
-    if (!userId) {
-        throw new Error("No user ID available");
-    }
-
-    let sessionDuration = null;
-    // Calculate session duration for all distracted activities (not just productive ones)
-    if (dumbReason && dumbReason !== "productive" && startTime) {
-        const endTime = new Date();
-        sessionDuration = (endTime.getTime() - startTime.getTime()) / 1000; // Duration in seconds
-    }
-
-    const activityData = {
-        url: url,
-        reason: reason,
-        dumbReason: dumbReason,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        sessionDuration: sessionDuration,
-    };
-
-    // Save to Firestore
-    const activitiesRef = firebase
-        .firestore()
-        .collection("users")
-        .doc(userId)
-        .collection("activities");
-    await activitiesRef.add(activityData);
-
-    console.log("Activity saved to Firestore successfully");
-}
 
 // Function to save activity to browser storage (fallback)
 async function saveActivityToBrowser(urlStr, reason, dumbReason) {
@@ -341,16 +297,6 @@ async function saveActivityToBrowser(urlStr, reason, dumbReason) {
                     resolve();
                 }
             });
-        });
-    });
-}
-
-// Get current user ID from browser storage
-async function getCurrentUserId() {
-    return new Promise((resolve) => {
-        chrome.storage.sync.get(["userInfo"], function (result) {
-            const userInfo = result.userInfo;
-            resolve(userInfo ? userInfo.uid : null);
         });
     });
 }

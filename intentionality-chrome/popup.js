@@ -1,4 +1,4 @@
-// Firestore-based data storage for Intentionality extension
+// Browser-based data storage for Intentionality extension
 import './lib/browser-polyfill.js';
 
 // Get current user ID (now using local storage only)
@@ -34,6 +34,19 @@ document.addEventListener("DOMContentLoaded", function () {
     const configSiteName = document.getElementById("configSiteName");
     const customPromptInput = document.getElementById("customPrompt");
     const customTimeInput = document.getElementById("customTime");
+
+    // More Info Toggle
+    const toggleMoreInfoBtn = document.getElementById("toggleMoreInfo");
+    const moreInfoContainer = document.getElementById("moreInfoContainer");
+    
+    if (toggleMoreInfoBtn && moreInfoContainer) {
+        toggleMoreInfoBtn.addEventListener("click", () => {
+            moreInfoContainer.classList.toggle("hidden");
+            toggleMoreInfoBtn.textContent = moreInfoContainer.classList.contains("hidden") 
+                ? "More Info" 
+                : "Less Info";
+        });
+    }
 
     let currentEditingSite = null;
 
@@ -457,11 +470,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 score: score
             });
         });
-
-        // If no data, create empty chart
-        if (chartData.length === 0) {
-            chartData.push({ x: '00:00', y: 0, activity: 'No activity', score: 0 });
-        }
 
         const labels = chartData.map(d => d.x);
         const productivityData = chartData.map(d => d.y);
